@@ -46,6 +46,7 @@ import net.floodlightcontroller.core.IHAListener;
 import net.floodlightcontroller.core.IInfoProvider;
 import net.floodlightcontroller.core.IOFMessageListener;
 import net.floodlightcontroller.core.IOFSwitch;
+import net.floodlightcontroller.core.internal.OFSwitchImpl;
 import net.floodlightcontroller.core.IOFSwitchListener;
 import net.floodlightcontroller.core.annotations.LogMessageCategory;
 import net.floodlightcontroller.core.annotations.LogMessageDoc;
@@ -81,10 +82,12 @@ import net.floodlightcontroller.topology.NodePortTuple;
 import net.floodlightcontroller.util.EventHistory;
 import net.floodlightcontroller.util.EventHistory.EvAction;
 
+import org.json.simple.JSONObject;
 import org.openflow.protocol.OFMessage;
 import org.openflow.protocol.OFPacketIn;
 import org.openflow.protocol.OFPacketOut;
 import org.openflow.protocol.OFPhysicalPort;
+import org.openflow.protocol.OFVendor;
 import org.openflow.protocol.OFPhysicalPort.OFPortConfig;
 import org.openflow.protocol.OFPhysicalPort.OFPortState;
 import org.openflow.protocol.OFPort;
@@ -94,6 +97,8 @@ import org.openflow.protocol.OFType;
 import org.openflow.protocol.action.OFAction;
 import org.openflow.protocol.action.OFActionOutput;
 import org.openflow.util.HexString;
+import org.openflow.vendor.nicira.OFNiciraVendorData;
+import org.openflow.vendor.nicira.OFRoleRequestVendorData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -646,7 +651,16 @@ IFloodlightModule, IInfoProvider, IHAListener {
             log.error("Failure sending LLDP out port {} on switch {}",
                       new Object[]{ port, iofSwitch.getStringId() }, e);
         }
+        
+        
+        JSONObject json_message= new JSONObject();
+        json_message.put("type", "HelloRequest");
+        ((OFSwitchImpl)iofSwitch).sendOpenMsg(json_message.toString());
+        
 
+      
+        
+        
     }
 
     /**

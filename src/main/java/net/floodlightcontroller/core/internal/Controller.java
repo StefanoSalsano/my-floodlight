@@ -122,6 +122,8 @@ import org.openflow.protocol.vendor.OFVendorId;
 import org.openflow.util.HexString;
 import org.openflow.util.U16;
 import org.openflow.util.U32;
+import org.openflow.vendor.experim.OFExperimAnyMsgVendorData;
+import org.openflow.vendor.experim.OFExperimVendorData;
 import org.openflow.vendor.nicira.OFNiciraVendorData;
 import org.openflow.vendor.nicira.OFRoleReplyVendorData;
 import org.openflow.vendor.nicira.OFRoleRequestVendorData;
@@ -861,6 +863,47 @@ public class Controller implements IFloodlightProviderService,
             state.firstRoleReplyReceived = true;
         }
 
+        /* Handle an handleExperimAnyMsgMessage message we received from the switch. Since
+         * netty serializes message dispatch we don't need to synchronize 
+         * against other receive operations from the same switch, so no need
+         * to synchronize addSwitch(), removeSwitch() operations from the same
+         * connection. 
+         * FIXME: However, when a switch with the same DPID connects we do
+         * need some synchronization. However, handling switches with same
+         * DPID needs to be revisited anyways (get rid of r/w-lock and synchronous
+         * removedSwitch notification):1
+         * 
+         */
+        @LogMessageDoc(level="ERROR",
+                message="Invalid message in Open Msg",
+                explanation="It is invalid for same reason " ,
+                recommendation=LogMessageDoc.CHECK_CONTROLLER)
+        protected void handleExperimAnyMsgMessage(OFVendor vendorMessage,
+                                    OFExperimAnyMsgVendorData openMsgMsgMsgMessage) {
+
+        	String message = openMsgMsgMsgMessage.getMessage(); 
+        	if (false) {
+                    log.error("invalid message");
+                    sw.getChannel().close();
+                    return;
+            }
+            
+            log.debug("Handling message: " + message  );
+            
+                       
+        }
+
+        /* Handle an handleVendorMessage message we received from the switch. Since
+         * netty serializes message dispatch we don't need to synchronize 
+         * against other receive operations from the same switch, so no need
+         * to synchronize addSwitch(), removeSwitch() operations from the same
+         * connection. 
+         * FIXME: However, when a switch with the same DPID connects we do
+         * need some synchronization. However, handling switches with same
+         * DPID needs to be revisited anyways (get rid of r/w-lock and synchronous
+         * removedSwitch notification):1
+         * 
+         */        
         protected boolean handleVendorMessage(OFVendor vendorMessage) {
             boolean shouldHandleMessage = false;
             int vendor = vendorMessage.getVendor();
@@ -882,6 +925,24 @@ public class Controller implements IFloodlightProviderService,
                             break;
                     }
                     break;
+                case OFExperimVendorData.EXP_VENDOR_ID:
+                	OFExperimVendorData oFOpenMsgVendorData =
+                            (OFExperimVendorData)vendorMessage.getVendorData();
+                    dataType = oFOpenMsgVendorData.getDataType();
+                    switch (dataType) {
+                        case OFExperimAnyMsgVendorData.EXPERIM_ANY_MSG:
+                        	OFExperimAnyMsgVendorData oFOpenMsgMsgMsgVendorData =
+                                    (OFExperimAnyMsgVendorData) oFOpenMsgVendorData;
+                            handleExperimAnyMsgMessage(vendorMessage,  
+                            		            oFOpenMsgMsgMsgVendorData);
+                            break;
+                        default:
+                            log.warn("Unhandled Nicira VENDOR message; " +
+                                     "data type = {}", dataType);
+                            break;
+                    }
+                    break;
+                	
                 default:
                     log.warn("Unhandled VENDOR message; vendor id = {}", vendor);
                     break;
@@ -2024,7 +2085,20 @@ public class Controller implements IFloodlightProviderService,
                 new OFBasicVendorDataType(
                         OFRoleReplyVendorData.NXT_ROLE_REPLY,
                         OFRoleReplyVendorData.getInstantiable());
-         niciraVendorId.registerVendorDataType(roleReplyVendorData);
+        niciraVendorId.registerVendorDataType(roleReplyVendorData);
+         
+         //Configure openflow to be able to parse the OpenMessage vendor message
+         OFBasicVendorId openMsgVendorId = new OFBasicVendorId(
+        		 OFExperimVendorData.EXP_VENDOR_ID, 4);
+         OFVendorId.registerVendorId(openMsgVendorId);
+         OFBasicVendorDataType openMsgMsgMsgVendorData =
+                 new OFBasicVendorDataType(
+                		 OFExperimAnyMsgVendorData.EXPERIM_ANY_MSG,
+                		 OFExperimAnyMsgVendorData.getInstantiable());
+         openMsgVendorId.registerVendorDataType(openMsgMsgMsgVendorData);
+         
+         
+         
     }
     
     /**

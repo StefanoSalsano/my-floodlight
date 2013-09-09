@@ -66,6 +66,8 @@ import org.openflow.protocol.statistics.OFDescriptionStatistics;
 import org.openflow.protocol.statistics.OFStatistics;
 import org.openflow.util.HexString;
 import org.openflow.util.U16;
+import org.openflow.vendor.experim.OFExperimAnyMsgVendorData;
+import org.openflow.vendor.experim.OFExperimVendorData;
 import org.openflow.vendor.nicira.OFNiciraVendorData;
 import org.openflow.vendor.nicira.OFRoleRequestVendorData;
 import org.openflow.vendor.nicira.OFRoleVendorData;
@@ -618,6 +620,27 @@ public class OFSwitchImpl implements IOFSwitch {
     @JsonSerialize(using=ToStringSerializer.class)
     public SocketAddress getInetAddress() {
         return channel.getRemoteAddress();
+    }
+    
+    public int sendOpenMsg(String message) {
+        OFVendor openMsg = (OFVendor)floodlightProvider.
+                getOFMessageFactory().getMessage(OFType.VENDOR);
+        int xid = this.getNextTransactionId();
+        openMsg.setXid(xid);
+        openMsg.setVendor(OFExperimVendorData.EXP_VENDOR_ID);
+        OFExperimAnyMsgVendorData openMsgData = new OFExperimAnyMsgVendorData();
+        openMsgData.setMessage(message);
+        openMsg.setVendorData(openMsgData);
+        openMsg.setLengthU(OFVendor.MINIMUM_LENGTH + 
+        		openMsgData.getLength());
+        
+        // Send it to the switch
+        List<OFMessage> msglist = new ArrayList<OFMessage>(1);
+        msglist.add(openMsg);
+        // FIXME: should this use this.write() in order for messages to
+        // be processed by handleOutgoingMessage()
+        this.channel.write(msglist);
+    	return 1;
     }
     
     /**
