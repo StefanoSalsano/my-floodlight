@@ -34,6 +34,7 @@
     <property name="test-output" location="${target}/test"/>
     <property name="coverage-output" location="${target}/coverage"/>
     <property name="source" location="src/main/java"/>
+    <property name="source-conet" location="/home/stefano/alien-ofelia-controller/src"/>
     <property name="resources" location="src/main/resources/"/>
     <property name="source-test" location="src/test/java"/>
     <property name="python-src" location="src/main/python"/>
@@ -64,6 +65,8 @@
         <include name="concurrentlinkedhashmap-lru-1.2.jar"/>
         <include name="jython-2.5.2.jar"/>
         <include name="libthrift-0.7.0.jar"/>
+        <include name="conet.jar"/>
+        <include name="json-simple-1.1.1.jar"/>
     </patternset>
 
     <path id="classpath">
@@ -111,7 +114,7 @@
         <javac includeAntRuntime="false" 
            classpathref="classpath" 
            debug="true" 
-           srcdir="${source}:${thrift.out.dir}"
+           srcdir="${source}:${source-conet}:${thrift.out.dir}"
            destdir="${build}">
         </javac>
     </target>
