@@ -39,6 +39,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import local.conet.ConetModule;
+
 import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IFloodlightProviderService.Role;
@@ -652,10 +654,11 @@ IFloodlightModule, IInfoProvider, IHAListener {
                       new Object[]{ port, iofSwitch.getStringId() }, e);
         }
         
-        
-        JSONObject json_message= new JSONObject();
-        json_message.put("type", "HelloRequest");
-        ((OFSwitchImpl)iofSwitch).sendOpenMsg(json_message.toString());
+        if (ConetModule.demoSendOpenMsg) {
+        	JSONObject json_message= new JSONObject();
+        	json_message.put("type", "HelloRequest");
+        	((OFSwitchImpl)iofSwitch).sendOpenMsg(json_message.toString());
+        }
         
 
       
