@@ -34,7 +34,7 @@
     <property name="test-output" location="${target}/test"/>
     <property name="coverage-output" location="${target}/coverage"/>
     <property name="source" location="src/main/java"/>
-    <property name="source-conet" location="${basedir}/../alien-ofelia-controller/src"/>
+	<!--    <property name="source-conet" location="${basedir}/../alien-ofelia-controller/src"/> -->
     <property name="resources" location="src/main/resources/"/>
     <property name="source-test" location="src/test/java"/>
     <property name="python-src" location="src/main/python"/>
@@ -110,6 +110,9 @@
         <mkdir dir="${test-output}"/>
     </target>
 
+	<!-- srcdir="${source}:${source-conet}:${thrift.out.dir}" -->
+
+	
     <target name="compile" depends="init">
         <javac includeAntRuntime="false" 
            classpathref="classpath" 
