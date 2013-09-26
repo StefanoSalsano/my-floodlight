@@ -3,8 +3,11 @@ package local.conet;
 
 
 import local.conet.ConetModule;
+import local.conet.ConetModule.CachedContent;
 
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Map;
 
 import org.restlet.resource.Get;
@@ -58,8 +61,8 @@ public class ConetCoreWebResource extends ServerResource
         }
         else
         if (stat_type.equals("cachedcontents"))
-        {   ConetModule.CachedContent[] cached_contents=conet_module.getCachedContents();     
-            result.put(switch_id,cached_contents);
+        {   //ConetModule.CachedContent[] cached_contents=conet_module.getCachedContents();     
+       	    result  = conet_module.getCachedContents();
             return result;
         }
         // ONLY FOR TEST:

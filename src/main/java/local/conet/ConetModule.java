@@ -114,12 +114,29 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	// public long[] sw_datapath=new long[0];
 	public String[] sw_datapath = new String[0];
 	long[] sw_datapath_long = new long[0];
+	
+	/**
+	 * This is needed to convert a dataPath long into an Hex string
+	 * with no colon, preserving leading '0's (it will be 16 hexadecimal characters
+	 * as the dataPath is 8 bytes)
+	 * 
+	 * @param dpLong
+	 * @return
+	 */
+	private String dpLong2String (long dpLong) {
+		String temp = Long.toHexString(dpLong);
+		int len = temp.length();
+		return (("0000000000000000"+temp).substring(len));
+	}
+	//NB from string to long example: Long.parseLong(sw_datapathStr[i], 16);
+	//NB from long to string example: Long.toHexString(sw_datapath_long[i])
 
 	/** Cache server ip address (for the corresponding datapath) */
 	public String[] cache_ip_addr = new String[0];
 
 	/** Cache server mac address (for the corresponding datapath) 
 	 * it will be stored in the format: 0203000000b0
+	 * leading 0s must be preserved
 	 * (colons can be present in conetcontroller.conf, they will be removed) 
 	 */
 	public String[] cache_mac_addr = new String[0];
@@ -192,10 +209,13 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	 * cached contents.
 	 */
 	public void flushAllContents() {
-		if (DEFAULT_DATAPATH >= 0)
-			flushAllContents(DEFAULT_DATAPATH);
-		else
-			println("DEBUG: No default datapath has been set: impossible to delete contents");
+		for (int k = 0; k < sw_datapath_long.length; k++) {
+			Long dp = sw_datapath_long[k];
+		//if (DEFAULT_DATAPATH >= 0)
+			flushAllContents(dp);
+		//else
+		//	println("DEBUG: No default datapath has been set: impossible to delete contents");
+		}
 	}
 
 	/**
@@ -203,22 +223,27 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	 * cached contents.
 	 */
 	public void flushAllContents(long datapath) {
-		println("DELETE ALL CONTENTS");
+		println("DELETE ALL CONTENTS in local view (hastable)");
 		// reset cached contents
-		for (Enumeration i = cached_contents.keys(); i.hasMoreElements();) {
-			String content_tag = (String) i.nextElement();
-			long tag = Long.parseLong(content_tag);
-			// remove flowtable entries that match packets with the given tag
-			// and with any icn server as destination
-			// NOTE: this should be changed when the cache server will send also
-			// the destination (together with tag info) within
-			// cache-to-controller messages
-			for (int j = 0; j < conet_servers.length; j++)
-				redirectToCache(datapath, OFFlowMod.OFPFC_DELETE,
-						(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(conet_servers[j])),
-						(byte) conet_proto, tag);
+		
+		Hashtable <String , CachedContent> myHT = cached_contents.get(dpLong2String(datapath));
+		if (myHT != null ) {
+			for (Enumeration i = myHT.keys(); i.hasMoreElements();) {
+				String content_tag = (String) i.nextElement();
+				long tag = Long.parseLong(content_tag);
+				// remove flowtable entries that match packets with the given tag
+				// and with any icn server as destination
+				// NOTE: this should be changed when the cache server will send also
+				// the destination (together with tag info) within
+				// cache-to-controller messages
+				println("TAG TO BE REMOVED : "+ content_tag);
+				for (int j = 0; j < conet_servers.length; j++)
+					redirectToCache(datapath, OFFlowMod.OFPFC_DELETE,
+							(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(conet_servers[j])),
+							(byte) conet_proto, tag);
+			}
+			myHT.clear();
 		}
-		cached_contents.clear();
 	}
 
 	/** Adds/Deletes all ICN-related static entries. */
@@ -317,14 +342,68 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		ip_mac_mapping.put(node_ipaddr, node_macaddr);
 	}
 
-	/** Gets total number of cached items. */
+	/** Gets total number of cached items in all datapaths. */
 	public int getCachedItems() {
-		return cached_contents.size();
+		//return cached_contents.size();
+		int total = 0;
+		for (Enumeration i = cached_contents.keys(); i.hasMoreElements();) {
+			String datapathStr = (String) i.nextElement();
+			total = total + getCachedItems( datapathStr);
+		}
+		return total;
+			
 	}
 
-	/** Gets array of cached contents. */
-	public CachedContent[] getCachedContents() {
-		return cached_contents.values().toArray(new CachedContent[0]);
+	/** Gets total number of cached items in a specific datapath */
+	public int getCachedItems(String datapathStr) {
+		Hashtable <String , CachedContent> myHT = cached_contents.get(datapathStr);
+		if (myHT != null ) {
+			return myHT.size();
+		} else {
+			return 0;
+		}
+	}
+
+	/** Gets array of cached contents for all datapaths */
+	public HashMap <String, Object> getCachedContents() {
+		//return cached_contents.values().toArray(new CachedContent[0]);
+		HashMap <String, Object> myHM = new HashMap <String, Object>();
+		
+		//CachedContent[] myArray = new CachedContent[0];
+		for (Enumeration i = cached_contents.keys(); i.hasMoreElements();) {
+			String datapathStr = (String) i.nextElement();
+			CachedContent[] newArray = getCachedContents(datapathStr); 
+			myHM.put(datapathStr, newArray);
+		}
+		return myHM;
+	}
+
+	public CachedContent[] getCachedContentsAsFlatArray() {
+		//return cached_contents.values().toArray(new CachedContent[0]);
+		CachedContent[] myArray = new CachedContent[0];
+		for (Enumeration i = cached_contents.keys(); i.hasMoreElements();) {
+			String datapathStr = (String) i.nextElement();
+			CachedContent[] newArray = getCachedContents(datapathStr); 
+			int aLen = myArray.length;
+		    int bLen = newArray.length;
+			CachedContent[] temp= new CachedContent[aLen+bLen];
+			System.arraycopy(myArray, 0, temp, 0, aLen);
+			System.arraycopy(newArray, 0, temp, aLen, bLen);
+			myArray = temp;
+		}
+		return myArray;
+	}
+
+	
+	
+	/** Gets array of cached contents for a given datapath */
+	public CachedContent[] getCachedContents(String datapathStr) {
+		Hashtable <String , CachedContent> myHT = cached_contents.get(datapathStr);
+		if (myHT != null ) {
+			return myHT.values().toArray(new CachedContent[0]);
+		} else {
+			return new CachedContent[0];
+		}
 	}
 
 	@Override
@@ -398,19 +477,13 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	}
 
 	@Override
-	public boolean isCallbackOrderingPostreq(OFType type, String name) { // TODO
-																			// Auto-generated
-																			// method
-																			// stub
+	public boolean isCallbackOrderingPostreq(OFType type, String name) { // TODO Auto-generated method stub
 		return false;
 	}
 
 	/** Return the list of interfaces that this module implements. */
 	@Override
-	public Collection<Class<? extends IFloodlightService>> getModuleServices() { // TODO
-																					// Auto-generated
-																					// method
-																					// stub
+	public Collection<Class<? extends IFloodlightService>> getModuleServices() { // TODO Auto-generated method stub
 		return null;
 	}
 
@@ -419,10 +492,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	 * services exported by this module.
 	 */
 	@Override
-	public Map<Class<? extends IFloodlightService>, IFloodlightService> getServiceImpls() { // TODO
-																							// Auto-generated
-																							// method
-																							// stub
+	public Map<Class<? extends IFloodlightService>, IFloodlightService> getServiceImpls() { // TODO Auto-generated method stub
 		return null;
 	}
 
@@ -442,7 +512,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	@Override
 	public void init(FloodlightModuleContext context) throws FloodlightModuleException {
 		println();
-		println("init(): start");
+		println("init(): start 2013 09 25 15:08");
 		println();
 		macVlanToSwitchPortMap = new ConcurrentHashMap<IOFSwitch, Map<MacVlanPair, Short>>();
 		floodlightProvider = context.getServiceImpl(IFloodlightProviderService.class);
@@ -468,8 +538,10 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		sw_datapath_long = new long[sw_datapath.length];
 		for (int i = 0; i < sw_datapath.length; i++)
 			sw_datapath_long[i] = Long.parseLong(sw_datapath[i], 16);
-		for (int i = 0; i < sw_datapath.length; i++)
-			println("sw_datapath[" + i + "]=" + sw_datapath_long[i] + "(" + Long.toHexString(sw_datapath_long[i]) + ")");
+		for (int i = 0; i < sw_datapath.length; i++) {
+			println("sw_datapath[" + i + "]=" + sw_datapath_long[i] + "(0x" + dpLong2String(sw_datapath_long[i]) + ")");
+			//println("0x"+sw_datapath[i]);
+		}
 
 		// in case a colon-formatted sw_virtual_mac_addr has been given
 		for (int i = 0; i < sw_datapath.length; i++)
@@ -518,10 +590,10 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		// restApi.addRestletRoutable(new
 		// net.floodlightcontroller.core.web.CoreWebRoutable());
 
-		println("ip addr 1 : "
-				+ getCacheIpAddress(Long.parseLong(BinAddrTools.trimHexString("00:10:00:00:00:00:00:05"), 16)));
-		println("ip addr 2 : "
-				+ getCacheIpAddress(Long.parseLong(BinAddrTools.trimHexString("00:10:00:00:00:00:00:06"), 16)));
+		//println("ip addr 1 : "
+		//		+ getCacheIpAddress(Long.parseLong(BinAddrTools.trimHexString("00:10:00:00:00:00:00:05"), 16)));
+		//println("ip addr 2 : "
+		//		+ getCacheIpAddress(Long.parseLong(BinAddrTools.trimHexString("00:10:00:00:00:00:00:06"), 16)));
 
 	}
 
@@ -555,7 +627,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 					datapath = Long.parseLong(dataPathStr, 16);
 					if (!json_cache_mac_addr.equals(getCacheMacAddress(datapath)))
 						println("WARNING: cache MAC address mismatch!");
-					if (!cached_contents.containsKey(datapath))
+					if (!cached_contents.containsKey(dataPathStr))
 						cached_contents.put(dataPathStr, new Hashtable());
 					//cached_contents.get(datapath).put(node_ipaddr, Short.valueOf(port));
 
@@ -701,7 +773,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			// @@@@@@
 			// sw.flush();
 		} else
-			println("WARNING: redirect(): No switch found for datapath " + datapath + ".");
+			println("WARNING: redirect(): No switch found for datapath : " + datapath + "(" + Long.toHexString(datapath) + ")");
 	}
 
 	/**
@@ -1162,27 +1234,14 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 				println("DEBUG: port_in == port_out: packet ignored");
 			if (verbose && LEARNING_SWITCH_VERBOSE)
 				println("LearningSwitch: processPacketInMessage(): ignoring packet that arrived on same port as learned destination:"
-						+ " switch "
-						+ sw
-						+ " vlan "
-						+ vlan
-						+ " dest MAC "
-						+ Long.toString(destMac, 16)
-						+ " port "
-						+ outPort);
+						+ " switch " + sw + " vlan " + vlan + " dest MAC " + Long.toString(destMac, 16) + " port " + outPort);
 		} else { // Add flow table entry matching source MAC, dest MAC, VLAN and
-					// input port
-					// that sends to the port we previously learned for the dest
-					// MAC/VLAN. Also
-					// add a flow table entry with source and destination MACs
-					// reversed, and
-					// input and output ports reversed. When either entry
-					// expires due to idle
-					// timeout, remove the other one. This ensures that if a
-					// device moves to
-					// a different port, a constant stream of packets headed to
-					// the device at
-					// its former location does not keep the stale entry alive
+					// input port that sends to the port we previously learned for the dest
+					// MAC/VLAN. Also add a flow table entry with source and destination MACs
+					// reversed, and input and output ports reversed. When either entry
+					// expires due to idle timeout, remove the other one. This ensures that if a
+					// device moves to a different port, a constant stream of packets headed to
+					// the device at its former location does not keep the stale entry alive
 					// forever.
 			if (verbose)
 				println("DEBUG: packet out to port " + outPort + " (and flow add)");
@@ -1300,26 +1359,24 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	// ***************************
 
 	/** Sends a FlowMod message for a PacketIn. */
-	protected void doFlowAddForPacketIn(IOFSwitch sw, OFPacketIn pi, short[] ports_out) { // read
-																							// in
-																							// packet
-																							// data
-																							// headers
-																							// by
-																							// using
-																							// OFMatch
+	protected void doFlowAddForPacketIn(IOFSwitch sw, OFPacketIn pi, short[] ports_out) { 
+		// read in packet data headers by using OFMatch
+		
 		OFMatch match = new OFMatch();
 		// match.loadFromPacket(pi.getPacketData(),pi.getInPort(),sw.getId());
 		match.loadFromPacket(pi.getPacketData(), pi.getInPort());
 
-		// set mach
+		// set match
 		// FIXME: current HP switches ignore DL_SRC and DL_DST fields, so we
 		// have to match on
 		// NW_SRC and NW_DST as well
+		// SS: I have now set the match ony to DL_SRC, DL_DST, DL_TYPE
 		// match.setWildcards(((Integer)sw.getAttribute(IOFSwitch.PROP_FASTWILDCARDS)).intValue()
+//		match.setWildcards(OFMatch.OFPFW_ALL & ~OFMatch.OFPFW_IN_PORT & ~OFMatch.OFPFW_DL_VLAN & ~OFMatch.OFPFW_DL_SRC
+//				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE & ~OFMatch.OFPFW_NW_PROTO & ~OFMatch.OFPFW_NW_SRC_MASK
+//				& ~OFMatch.OFPFW_NW_DST_MASK & ~OFMatch.OFPFW_TP_SRC & ~OFMatch.OFPFW_TP_DST);
 		match.setWildcards(OFMatch.OFPFW_ALL & ~OFMatch.OFPFW_IN_PORT & ~OFMatch.OFPFW_DL_VLAN & ~OFMatch.OFPFW_DL_SRC
-				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE & ~OFMatch.OFPFW_NW_PROTO & ~OFMatch.OFPFW_NW_SRC_MASK
-				& ~OFMatch.OFPFW_NW_DST_MASK & ~OFMatch.OFPFW_TP_SRC & ~OFMatch.OFPFW_TP_DST);
+				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE );
 
 		// set actions
 		OFAction[] actions = new OFAction[ports_out.length];
@@ -1330,14 +1387,8 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	}
 
 	/** Sends a FlowMod message for a PacketIn. */
-	protected void doFlowAddForPacketIn(IOFSwitch sw, OFPacketIn pi, short port_out) { // Read
-																						// in
-																						// packet
-																						// data
-																						// headers
-																						// by
-																						// using
-																						// OFMatch
+	protected void doFlowAddForPacketIn(IOFSwitch sw, OFPacketIn pi, short port_out) { 
+		//read in packet data headers by using OFMatch									
 		OFMatch match = new OFMatch();
 		// match.loadFromPacket(pi.getPacketData(),pi.getInPort(),sw.getId());
 		match.loadFromPacket(pi.getPacketData(), pi.getInPort());
@@ -1345,17 +1396,20 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		// FIXME: current HP switches ignore DL_SRC and DL_DST fields, so we
 		// have to match on
 		// NW_SRC and NW_DST as well
+		// SS: I have now set the match ony to DL_SRC, DL_DST, DL_TYPE
 		// match.setWildcards(((Integer)sw.getAttribute(IOFSwitch.PROP_FASTWILDCARDS)).intValue()
+//		match.setWildcards(OFMatch.OFPFW_ALL & ~OFMatch.OFPFW_IN_PORT & ~OFMatch.OFPFW_DL_VLAN & ~OFMatch.OFPFW_DL_SRC
+//				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE & ~OFMatch.OFPFW_NW_PROTO & ~OFMatch.OFPFW_NW_SRC_MASK
+//				& ~OFMatch.OFPFW_NW_DST_MASK & ~OFMatch.OFPFW_TP_SRC & ~OFMatch.OFPFW_TP_DST);
 		match.setWildcards(OFMatch.OFPFW_ALL & ~OFMatch.OFPFW_IN_PORT & ~OFMatch.OFPFW_DL_VLAN & ~OFMatch.OFPFW_DL_SRC
-				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE & ~OFMatch.OFPFW_NW_PROTO & ~OFMatch.OFPFW_NW_SRC_MASK
-				& ~OFMatch.OFPFW_NW_DST_MASK & ~OFMatch.OFPFW_TP_SRC & ~OFMatch.OFPFW_TP_DST);
+				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE );
+
+		
+		
 		doFlowMod(sw, OFFlowMod.OFPFC_ADD, pi.getBufferId(), match, port_out);
 
 		if (LEARNING_SWITCH_REVERSE_FLOW) {
-			doFlowMod(
-					sw,
-					OFFlowMod.OFPFC_ADD,
-					-1,
+			doFlowMod( sw, OFFlowMod.OFPFC_ADD, -1,
 					match.clone().setDataLayerSource(match.getDataLayerDestination())
 							.setDataLayerDestination(match.getDataLayerSource())
 							.setNetworkSource(match.getNetworkDestination())
