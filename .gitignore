@@ -5,6 +5,8 @@
 .pydevproject
 .settings
 .DS_Store
+*.log
+.directory
 target
 thrift
 *.swp
