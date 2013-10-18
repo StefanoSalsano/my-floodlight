@@ -1286,8 +1286,9 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		if (flowRemovedMessage.getCookie() != LEARNING_SWITCH_COOKIE) {
 			return Command.CONTINUE;
 		}
-		if (LEARNING_SWITCH_VERBOSE)
-			println("LearningSwitch: processFlowRemovedMessage(): " + sw + " flow entry removed " + flowRemovedMessage);
+		/*if (LEARNING_SWITCH_VERBOSE)
+			println("LearningSwitch: processFlowRemovedMessage(): " + sw + " flow entry removed " + flowRemovedMessage);*/
+		println("LearningSwitch: processFlowRemovedMessage(): " + sw + " flow entry removed " + flowRemovedMessage);
 		OFMatch match = flowRemovedMessage.getMatch();
 		// When a flow entry expires, it means the device with the matching
 		// source
