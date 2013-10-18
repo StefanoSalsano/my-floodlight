@@ -6,6 +6,7 @@
 .settings
 .DS_Store
 *.log
+*.jar
 .directory
 target
 thrift

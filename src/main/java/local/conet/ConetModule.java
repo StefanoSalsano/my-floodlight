@@ -408,8 +408,9 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 
 	@Override
 	public Command receive(IOFSwitch sw, OFMessage msg, FloodlightContext cntx) {
-		if (LEARNING_SWITCH_VERBOSE)
-			println("receive(): " + msg);
+		/*if (LEARNING_SWITCH_VERBOSE)
+			println("receive(): " + msg);*/
+		println("receive(): " + msg);
 
 		// LEARN DATAPATH-TO-SWITCH MAPPING AND DELETE ALL FLOW TABLE ENTRIES
 		try {
@@ -788,7 +789,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	 */
 	public void forwardToClient(long dp, short command, short vlan, byte[] client_macaddr, int client_ipaddr, short port) {
 		// SEND TO ICN-CLIENT AND EVENTUALLY TO CACHE-SERVER
-																															// 
+		this.println("FORWARDTOCLIENT");																											// 
 		if (!debug_disable_redirection) {
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER, OTHERWISE SEND TO BOTH ICN-CLIENT AND TO CACHE-SERVER
 
@@ -881,6 +882,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	protected Command processConetPacketInMessage(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx) {
 		boolean verbose = CONET_VERBOSE;
 
+		this.println("CALL PROCESSCONETPACKETIN");
 		try {
 			// read in packet data headers by using OFMatch
 			OFMatch match = new OFMatch();
@@ -911,13 +913,20 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 						verbose = true;
 			}
 
-			if (verbose)
+			/*if (verbose)
 				println("PACKET-IN: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "), port=" + port_in
 						+ ", vlan=" + vlan + ", mac_src=" + BinTools.asHex(eth_src) + ", mac_dst="
 						+ BinTools.asHex(eth_dst) + ", eth_proto=0x" + Integer.toHexString(U16.f(eth_proto))
 						+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", ip_dst="
 						+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_dst)) + ", ip_proto=0x"
-						+ Integer.toHexString(ip_proto) + ", tag=0x" + Long.toHexString(tag));
+						+ Integer.toHexString(ip_proto) + ", tag=0x" + Long.toHexString(tag));*/
+			
+			println("PACKET-IN: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "), port=" + port_in
+					+ ", vlan=" + vlan + ", mac_src=" + BinTools.asHex(eth_src) + ", mac_dst="
+					+ BinTools.asHex(eth_dst) + ", eth_proto=0x" + Integer.toHexString(U16.f(eth_proto))
+					+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", ip_dst="
+					+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_dst)) + ", ip_proto=0x"
+					+ Integer.toHexString(ip_proto) + ", tag=0x" + Long.toHexString(tag));
 
 			IpPacket ip_packet = (eth_proto == 0x800) ? IpPacket.parseRawPacket(pkt_data, 14) : null;
 			// println("DEBUG: "+((ip_packet!=null)? "is" :

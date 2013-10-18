@@ -1,0 +1,88 @@
+# Conet Controller configuration file
+
+# The VLAN ID of the Flowspace
+VLAN_ID=16
+
+# The IP protocol type for Conet packet:
+# default: conet_proto=254
+conet_proto=17
+
+# Server port for cache-to-controller communication:
+# default: json_port=9999
+#json_port=9999
+
+# Whether changing mac and ip destination addresses when redirecting packets to cache server:
+# default: change_destination=no
+#change_destination=yes
+
+# Whether changing (only) mac destination addresses when redirecting packets to cache server:
+change_mac_destination=yes
+
+# Whether changing (only) mac source addresses when redirecting packets to cache server:
+change_mac_source=yes
+
+# Learning switch idle timeout [in seconds]:
+# default: sw_idle_timeout=30
+#sw_idle_timeout=120
+
+# Name of the log file:
+# default: log_file=conetcontroller.log
+log_file=log/conetcontroller.log
+
+# Maximum size of a single log file (in MB):
+# default: log_size=1
+log_size=10
+
+# Number of different files that are rotated:
+# default: log_rotation=1
+log_rotation=7
+
+# Duration of each log before rotating (specified in days):
+# default: int log_time=1
+
+# Conet nodes
+conet_clients=192.168.1.23
+conet_servers=192.168.1.8
+#conet_servers=192.168.1.8 192.168.1.85
+
+# Switch#1 configuration
+sw_datapath=00:10:00:00:00:00:00:05
+cache_ip_addr=192.168.1.83
+cache_mac_addr=02:03:00:00:00:b0
+cache_port=12
+sw_virtual_mac_addr=00:00:00:00:00:05
+
+
+# Switch#2 configuration
+sw_datapath=00:10:00:00:00:00:00:04
+cache_ip_addr=192.168.1.218
+cache_mac_addr=02:03:00:00:02:44
+cache_port=12
+sw_virtual_mac_addr=00:00:00:00:00:04
+
+
+
+
+# Switch virtual mac address used as source address when redirecting packets to cache server:
+# default: sw_virtual_mac_addr=00:00:00:00:00:01
+#sw_virtual_mac_addr=02:00:00:00:00:01
+
+# DEBUG: whether disable the redirection to cache-server of data packets coming from icn-servers:
+#debug_disable_redirection=yes
+
+# DEBUG: whether disabling any static flow table entries and working in transparent learning switch mode:
+#debug_learning_switch_only=yes
+
+# Tag-based forwarding is activated at the start:
+# default: tag_based_forwarding=yes
+tag_based_forwarding=yes
+
+# Conetcontroller verbose output
+#CONET_VERBOSE=yes
+
+# LearningSwitch verbose output
+#LEARNING_SWITCH_VERBOSE=yes
+
+#automatic periodic sending of OpenMsg in LinkDiscoveryManager.java
+# default: demoSendOpenMsg=no
+#demoSendOpenMsg=yes
