@@ -186,13 +186,15 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 
 	/** Tag-based forwarding */
 	public boolean tag_based_forwarding = true;
+	
+	public boolean debug_multi_cs = false;
 
 	/** Sets tag-based forwarding. */
 	public void setTBF(boolean tag_based_forwarding) {
 		println("TAG-BASED FORWARDING: " + tag_based_forwarding);
 		this.tag_based_forwarding = tag_based_forwarding;
 		if (!tag_based_forwarding) {
-			flushAllContents();
+			//flushAllContents();
 			flushAllIcnNodes(false);
 		} else {
 			flushAllIcnNodes(true);
@@ -250,22 +252,67 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	public void flushAllIcnNodes(boolean icn_active) {
 		short command = (icn_active) ? OFFlowMod.OFPFC_ADD : OFFlowMod.OFPFC_DELETE;
 		println(((icn_active) ? "ADD" : "DELETE") + " ALL ICN STATIC ENTRIES");
-		for (int k = 0; k < sw_datapath_long.length; k++) {
-			Long dp = sw_datapath_long[k];
-			for (int i = 0; i < conet_clients.length; i++) {
-				int client_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(conet_clients[i]));
-				byte[] client_macaddr = getConetNodeMacAddress(conet_clients[i]);
-				short port = getConetNodePort(dp, conet_clients[i]);
-				forwardToClient(dp, command, (short) VLAN_ID, client_macaddr, client_ipaddr, port);
-			}
-			for (int i = 0; i < conet_servers.length; i++) {
-				int server_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(conet_servers[i]));
-				byte[] server_macaddr = getConetNodeMacAddress(conet_servers[i]);
-				short port = getConetNodePort(dp, conet_servers[i]);
-				forwardToServer(dp, command, (short) VLAN_ID, server_macaddr, server_ipaddr, port);
+		if(icn_active){
+			for (int k = 0; k < sw_datapath_long.length; k++) {
+				Long dp = sw_datapath_long[k];
+				if(this.debug_multi_cs)
+					this.println("SW DP: 0x" + this.dpLong2String(dp));
+				for (int i = 0; i < conet_clients.length; i++) {
+					int client_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(conet_clients[i]));
+					byte[] client_macaddr = getConetNodeMacAddress(conet_clients[i]);
+					short port = getConetNodePort(dp, conet_clients[i]);
+					if(this.debug_multi_cs){
+						this.println("Forward To Client DP: 0x" + this.dpLong2String(dp));
+						this.println("Forward To Client IP:" + conet_clients[i]);
+						this.println("Forward To Client CMD:" + command);
+						this.println("Forward To Client port_out:" + port);
+					}
+					forwardToClient(dp, command, (short) VLAN_ID, client_macaddr, client_ipaddr, port);
+				}
+				for (int i = 0; i < conet_servers.length; i++) {
+					int server_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(conet_servers[i]));
+					byte[] server_macaddr = getConetNodeMacAddress(conet_servers[i]);
+					short port = getConetNodePort(dp, conet_servers[i]);
+					if(this.debug_multi_cs){
+						this.println("Forward To Server DP: 0x" + this.dpLong2String(dp));
+						this.println("Forward To Client IP:" + conet_servers[i]);
+						this.println("Forward To Server CMD:" + command);
+						this.println("Forward To Server port_out:" + port);
+					}
+					forwardToServer(dp, command, (short) VLAN_ID, server_macaddr, server_ipaddr, port);
+				}
 			}
 		}
+		else
+			this.deleteAllConetRule();
+		
 	}
+	
+	
+	/*
+	 * Try To Delete All Conet Rule
+	 */
+	private void deleteAllConetRule(){
+		if(this.debug_multi_cs)
+			this.println("DELETE ALL CONET RULE");
+		Map<Long, IOFSwitch> switches = floodlightProvider.getSwitches();
+		int i = 0;
+		while(i<this.sw_datapath_long.length){
+			if(switches.containsKey(this.sw_datapath_long[i])){
+				this.println("Trovato: " + this.sw_datapath[i] + " - DELETE");
+				IOFSwitch sw = switches.get(this.sw_datapath_long[i]);
+				doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short)VLAN_ID, (short) 0x800, null, (int) 0, null,
+						(int) 0, (byte) conet_proto, (short) 0, (short) 0, null, 0);
+				i++;
+			}
+			else{
+				this.println("Non Trovato: " + this.sw_datapath[i]);
+			}
+		}
+		
+	}
+	
+	
 
 	/** Gets cache server ip address for the given datapath. */
 	private String getCacheIpAddress(long datapath) {
@@ -410,7 +457,8 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	public Command receive(IOFSwitch sw, OFMessage msg, FloodlightContext cntx) {
 		/*if (LEARNING_SWITCH_VERBOSE)
 			println("receive(): " + msg);*/
-		println("receive(): " + msg);
+		if(this.debug_multi_cs)
+			println("receive(): " + msg);
 
 		// LEARN DATAPATH-TO-SWITCH MAPPING AND DELETE ALL FLOW TABLE ENTRIES
 		try {
@@ -565,6 +613,8 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		} catch (java.io.IOException e) {
 			printException(e);
 		}
+		if(this.debug_multi_cs)
+			this.println("DEBUG MULTICS ATTIVATO");
 	}
 
 	/**
@@ -1661,15 +1711,15 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 
 	/** Prints a blank line. */
 	private void println() {
-		println("");
+		println("[" + Thread.currentThread().getName() + "]");
 	}
 
 	/** Prints a log message. */
 	private void println(String str) {
 		if (log != null)
-			log.println(str);
+			log.println("[" + Thread.currentThread().getName() + "]" + str + "\n\n");
 		// else
-		System.out.println("***CONET*** " + str);
+		System.out.println("[" + Thread.currentThread().getName() + "]" + "***CONET*** " + str + "\n\n");
 	}
 
 	/**
