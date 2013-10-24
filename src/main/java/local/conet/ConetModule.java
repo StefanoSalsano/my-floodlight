@@ -204,20 +204,21 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	public int bit_net = 0;
 
 	/** Sets tag-based forwarding. */
-	public void setTBF(boolean tag_based_forwarding) {
-		println("TAG-BASED FORWARDING: " + tag_based_forwarding);
-		this.tag_based_forwarding = tag_based_forwarding;
-		if (!tag_based_forwarding) {
-			//flushAllContents();
-			flushAllIcnNodes(false);
-		} else {
-			flushAllIcnNodes(true);
-		}
+	public void setTBF(ConetMode tag_based_forwarding) {
+		println("TAG-BASED FORWARDING: " + tag_based_forwarding.name());
+//TODO
+//		this.tag_based_forwarding = tag_based_forwarding;
+//		if (!tag_based_forwarding) {
+//			//flushAllContents();
+//			flushAllIcnNodes(false);
+//		} else {
+//			flushAllIcnNodes(true);
+//		}
 	}
 
 	/** Gets tag-based forwarding. */
-	public boolean getTBF() {
-		return tag_based_forwarding;
+	public ConetMode getTBF() {
+		return ConetMode.TBFF;
 	}
 
 	/**
@@ -366,7 +367,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 				this.println("Trovato: " + this.sw_datapath[i] + " - DELETE");
 				IOFSwitch sw = switches.get(this.sw_datapath_long[i]);
 				
-				//TODO Rimettere il VID e UDP
+				
 				
 				doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short)VLAN_ID, (short) 0x800, 
 						null, (int) IPv4.toIPv4Address(net), (int) bit_net, 

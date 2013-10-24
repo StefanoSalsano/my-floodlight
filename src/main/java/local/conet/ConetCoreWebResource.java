@@ -41,14 +41,18 @@ public class ConetCoreWebResource extends ServerResource
         
         ConetModule conet_module=ConetModule.INSTANCE;
 
-        if (switch_id.equals("all") && (stat_type.equals("start") || stat_type.equals("stop") || stat_type.equals("info")))
+        if (switch_id.equalsIgnoreCase("all") && (stat_type.equalsIgnoreCase("tbff") || stat_type.equalsIgnoreCase("tbf") ||
+        		stat_type.equalsIgnoreCase("notbf") || stat_type.equalsIgnoreCase("info")))
         {   
-            if (stat_type.equals("start")) conet_module.setTBF(true);
-            else
-            if (stat_type.equals("stop")) conet_module.setTBF(false);
+            if (stat_type.equalsIgnoreCase("tbff")) 
+            	conet_module.setTBF(ConetMode.TBFF);
+            else if (stat_type.equalsIgnoreCase("tbf"))
+            	conet_module.setTBF(ConetMode.TBF);
+            else if(stat_type.equalsIgnoreCase("notbf"))
+            	conet_module.setTBF(ConetMode.NOTBF);
 
             TagBasedFW tag_based_fw=new TagBasedFW();
-            tag_based_fw.tagbasedfw=((conet_module.getTBF())? "up" : "down");
+            tag_based_fw.tagbasedfw=conet_module.getTBF().name();
             result.put(switch_id,tag_based_fw);
             return result;
         }
