@@ -1,7 +1,9 @@
 package local.conet;
 
 import java.util.*;
+import java.util.Map.Entry;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.openflow.protocol.*;
@@ -11,8 +13,8 @@ import org.openflow.util.LRULinkedHashMap;
 import net.floodlightcontroller.core.*;
 import net.floodlightcontroller.core.module.*;
 import net.floodlightcontroller.core.types.MacVlanPair;
-
 import net.floodlightcontroller.packet.Ethernet;
+import net.floodlightcontroller.packet.IPv4;
 
 import local.conet.*;
 import org.zoolu.net.IpPacket;
@@ -188,6 +190,18 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	public boolean tag_based_forwarding = true;
 	
 	public boolean debug_multi_cs = false;
+	
+	public String clients = "";
+	public int bit_clients = 0;
+	
+	public String servers = "";
+	public int bit_servers = 0;
+	
+	public String cservers = "";
+	public int bit_cservers = 0;
+	
+	public String net = "";
+	public int bit_net = 0;
 
 	/** Sets tag-based forwarding. */
 	public void setTBF(boolean tag_based_forwarding) {
@@ -210,15 +224,18 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	 * Deletes all flowtable entries for cached contents and clears the DB of
 	 * cached contents.
 	 */
-	public void flushAllContents() {
-		for (int k = 0; k < sw_datapath_long.length; k++) {
-			Long dp = sw_datapath_long[k];
-		//if (DEFAULT_DATAPATH >= 0)
-			flushAllContents(dp);
-		//else
-		//	println("DEBUG: No default datapath has been set: impossible to delete contents");
-		}
-	}
+	
+//	NOT USED
+//
+//	public void flushAllContents() {
+//		for (int k = 0; k < sw_datapath_long.length; k++) {
+//			Long dp = sw_datapath_long[k];
+//		//if (DEFAULT_DATAPATH >= 0)
+//			flushAllContents(dp);
+//		//else
+//		//	println("DEBUG: No default datapath has been set: impossible to delete contents");
+//		}
+//	}
 
 	/**
 	 * Deletes all flowtable entries for cached contents and clears the DB of
@@ -239,10 +256,9 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 				// the destination (together with tag info) within
 				// cache-to-controller messages
 				println("TAG TO BE REMOVED : "+ content_tag);
-				for (int j = 0; j < conet_servers.length; j++)
-					redirectToCache(datapath, OFFlowMod.OFPFC_DELETE,
-							(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(conet_servers[j])),
-							(byte) conet_proto, tag);
+				//for (int j = 0; j < conet_servers.length; j++)
+				redirectToCache(datapath, OFFlowMod.OFPFC_DELETE, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(servers)),
+						(int) bit_servers, (byte) conet_proto, tag);
 			}
 			myHT.clear();
 		}
@@ -280,7 +296,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 						this.println("Forward To Server port_out:" + port);
 					}
 					forwardToServer(dp, command, (short) VLAN_ID, server_macaddr, server_ipaddr, port);
-				}
+				}     
 			}
 		}
 		else
@@ -288,7 +304,55 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		
 	}
 	
+	private long ipToLong(String ip) {
+        byte[] octets = BinAddrTools.ipv4addrToBytes(ip);
+        long result = 0;
+        for (byte octet : octets) {
+            result <<= 8;
+            result |= octet & 0xff;
+        }
+        return result;
+    }
+
+
+	private boolean is_client(String key) {
+		if(this.debug_multi_cs)
+			this.println("CALL IS_CLIENT");
+		long inf = this.ipToLong(clients);
+		long sup = this.ipToLong(servers);
+		long toverify = this.ipToLong(key);
+		this.println("INF: " + clients + " - " + inf);
+		this.println("SUP: " + servers + " - " + sup);
+		this.println("toverify: " + key + " - " + toverify);
+		return (toverify > inf && toverify < sup) ? true : false;
+	}
 	
+	private boolean is_server(String key) {
+		if(this.debug_multi_cs)
+			this.println("CALL IS_SERVERS");
+		long inf = this.ipToLong(servers);
+		long sup = this.ipToLong(cservers);
+		long toverify = this.ipToLong(key);
+		this.println("INF: " + servers + " - " + inf);
+		this.println("SUP: " + cservers + " - " + sup);
+		this.println("toverify: " + key + " - " + toverify);
+		return (toverify > inf && toverify < sup) ? true : false;
+	}
+	
+	private boolean is_cserver(String key) {
+		if(this.debug_multi_cs)
+			this.println("CALL IS_CSERVERS");
+		long inf = this.ipToLong(cservers);
+		long sup = this.ipToLong("192.168.192.0");
+		long toverify = this.ipToLong(key);
+		this.println("INF: " + cservers + " - " + inf);
+		// TODO Attenzione al SUP
+		this.println("SUP: 192.168.192.0 - " + sup);
+		this.println("toverify: " + key + " - " + toverify);
+		return (toverify > inf && toverify < sup) ? true : false;
+	}
+
+
 	/*
 	 * Try To Delete All Conet Rule
 	 */
@@ -301,13 +365,18 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			if(switches.containsKey(this.sw_datapath_long[i])){
 				this.println("Trovato: " + this.sw_datapath[i] + " - DELETE");
 				IOFSwitch sw = switches.get(this.sw_datapath_long[i]);
-				doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short)VLAN_ID, (short) 0x800, null, (int) 0, null,
-						(int) 0, (byte) conet_proto, (short) 0, (short) 0, null, 0);
-				i++;
+				
+				//TODO Rimettere il VID e UDP
+				
+				doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short)VLAN_ID, (short) 0x800, 
+						null, (int) IPv4.toIPv4Address(net), (int) bit_net, 
+						null, (int) IPv4.toIPv4Address(net), (int) bit_net,
+						(byte) conet_proto, (short) 0, (short) 0, null, 0);
 			}
 			else{
 				this.println("Non Trovato: " + this.sw_datapath[i]);
 			}
+			i++;
 		}
 		
 	}
@@ -347,7 +416,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 				return sw_virtual_mac_addr[i];
 		return null;
 	}
-
+	
 	/** Gets conet node port for the given datapath. */
 	private short getConetNodePort(Long datapath, String node_ipaddr) {
 		if (conet_port_mapping.containsKey(datapath)) {
@@ -459,7 +528,10 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			println("receive(): " + msg);*/
 		if(this.debug_multi_cs)
 			println("receive(): " + msg);
-
+		
+		if(msg.getType() == OFType.FLOW_MOD)
+			return Command.CONTINUE;
+		
 		// LEARN DATAPATH-TO-SWITCH MAPPING AND DELETE ALL FLOW TABLE ENTRIES
 		try {
 			Long dp = Long.valueOf(sw.getId());
@@ -468,9 +540,9 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 				//all flows are cleaned
 				
 				seen_switches.put(dp, sw);
-				doFlowModDeleteAll(sw, (short) 0);
+				doFlowModDeleteAll(sw, (short) VLAN_ID);
 				// DEBUG: use also the following alternative method
-				testDeleteAllFlowTableEntries();
+				//testDeleteAllFlowTableEntries();
 			}
 		} catch (Exception e) {
 			println("WARNING: receive(): sw.getId() failed.");
@@ -496,12 +568,12 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			return processHelloMessage(sw, (OFHello) msg);
 		// else
 		if (msg.getType() == OFType.ERROR) {
-			if (LEARNING_SWITCH_VERBOSE)
+			//if (LEARNING_SWITCH_VERBOSE)
 				println("LearningSwitch: receive(): received from switch " + sw + " the error: " + msg);
 			return Command.CONTINUE;
 		}
 		// else
-		if (LEARNING_SWITCH_VERBOSE)
+		//if (LEARNING_SWITCH_VERBOSE)
 			println("LearningSwitch: receive(): received from switch " + sw + " the unexpected msg: " + msg);
 		return Command.CONTINUE;
 
@@ -513,12 +585,12 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	}
 
 	/*
-	 * @Override public int getId() { // TODO Auto-generated method stub return
+	 * @Override public int getId() { // Auto-generated method stub return
 	 * 0; }
 	 */
 
 	@Override
-	public boolean isCallbackOrderingPrereq(OFType type, String name) { // TODO
+	public boolean isCallbackOrderingPrereq(OFType type, String name) { // 
 																		// Auto-generated
 																		// method
 																		// stub
@@ -526,13 +598,13 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	}
 
 	@Override
-	public boolean isCallbackOrderingPostreq(OFType type, String name) { // TODO Auto-generated method stub
+	public boolean isCallbackOrderingPostreq(OFType type, String name) { // Auto-generated method stub
 		return false;
 	}
 
 	/** Return the list of interfaces that this module implements. */
 	@Override
-	public Collection<Class<? extends IFloodlightService>> getModuleServices() { // TODO Auto-generated method stub
+	public Collection<Class<? extends IFloodlightService>> getModuleServices() { //  Auto-generated method stub
 		return null;
 	}
 
@@ -541,7 +613,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	 * services exported by this module.
 	 */
 	@Override
-	public Map<Class<? extends IFloodlightService>, IFloodlightService> getServiceImpls() { // TODO Auto-generated method stub
+	public Map<Class<? extends IFloodlightService>, IFloodlightService> getServiceImpls() { //  Auto-generated method stub
 		return null;
 	}
 
@@ -613,8 +685,16 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		} catch (java.io.IOException e) {
 			printException(e);
 		}
-		if(this.debug_multi_cs)
+		if(this.debug_multi_cs){
 			this.println("DEBUG MULTICS ATTIVATO");
+			this.println("Net: " + net + "/" + bit_net);
+			this.println("Clients: " + clients + "/" + bit_clients);
+			this.println("Servers: " + servers + "/" + bit_servers);
+			this.println("Clients: " + cservers + "/" + bit_cservers);
+		}
+		
+		
+
 	}
 
 	/**
@@ -754,7 +834,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 					// set flowtable entry for redirecting packets with the given
 					// tag and with the given destination
 					if (dest_ipaddr != 0)
-						redirectToCache(datapath, command, dest_ipaddr, (byte) conet_proto, tag);
+						redirectToCache(datapath, command, (int) dest_ipaddr,(int) -1,(byte) conet_proto, tag);
 					else
 						// set flowtable entry for redirecting packets with the given
 						// tag and with any conet server address as destination
@@ -762,10 +842,9 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 						// also the destination (together with tag info) within
 						// cache-to-controller messages
 					{
-						for (int i = 0; i < conet_servers.length; i++)
-							redirectToCache(datapath, command,
-									(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(conet_servers[i])),
-									(byte) conet_proto, tag);
+						// for (int i = 0; i < conet_servers.length; i++)
+						redirectToCache(datapath, command,(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(servers)),
+								(int) 24, (byte) conet_proto, tag);
 					}
 				}
 			}
@@ -785,17 +864,19 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	}
 
 	/** Adds/removes tag redirection to cache server. */
-	public void redirectToCache(long datapath, short command, int dest_ipaddr, byte ip_proto, long tag) {
+	public void redirectToCache(long datapath, short command, int dest_ipaddr, int dest_cidr, byte ip_proto, long tag) {
 		Vector<OFAction> actions_vector = new Vector<OFAction>();
 		int actions_len = 0;
-
+		this.println("CALL REDIRECT TO CACHE");
 		if (change_destination || change_mac_destination) {
+			this.println("CAMBIO MAC DST: " + this.getCacheMacAddress(datapath));
 			OFActionDataLayerDestination action_dl_dest = new OFActionDataLayerDestination();
 			action_dl_dest.setDataLayerAddress(BinTools.hexStringToBytes(getCacheMacAddress(datapath)));
 			actions_vector.addElement(action_dl_dest);
 			actions_len += OFActionDataLayerDestination.MINIMUM_LENGTH;
 		}
 		if (change_destination) {
+			this.println("CAMBIO NET DST: " + this.getCacheIpAddress(tag));
 			OFActionNetworkLayerDestination action_nw_dest = new OFActionNetworkLayerDestination();
 			action_nw_dest.setNetworkAddress((int) BinTools.fourBytesToInt(BinAddrTools
 					.ipv4addrToBytes(getCacheIpAddress(datapath))));
@@ -803,6 +884,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			actions_len += OFActionNetworkLayerDestination.MINIMUM_LENGTH;
 		}
 		if (change_mac_source) {
+			this.println("CAMBIO MAC SRC: " + this.getSwVirtualMacAddr(datapath));
 			OFActionDataLayerSource action_dl_src = new OFActionDataLayerSource();
 			action_dl_src.setDataLayerAddress(BinTools.hexStringToBytes(getSwVirtualMacAddr(datapath)));
 			actions_vector.addElement(action_dl_src);
@@ -819,8 +901,10 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		IOFSwitch sw = seen_switches.get(Long.valueOf(datapath));
 		if (sw != null) {
 			// doFlowModStatic(sw,command,PRIORITY_REDIRECTION,(short)0,(short)VLAN_ID,(short)0x800,null,0,null,dest_ipaddr,ip_proto,tag,Arrays.asList(actions),(short)actions_len);
-			doFlowModStatic(sw, command, PRIORITY_REDIRECTION, (short) 0, (short) VLAN_ID, (short) 0x800, null, 0,
-					null, dest_ipaddr, ip_proto, tag, actions_vector, (short) actions_len);
+			
+			doFlowModStatic(sw, command, (short)(PRIORITY_REDIRECTION+50), (short) 0, (short) VLAN_ID, (short) 0x800, null, IPv4.toIPv4Address(clients), 
+					bit_clients, null, dest_ipaddr, dest_cidr, ip_proto, tag, actions_vector, (short) actions_len);
+			
 			// @@@@@@
 			// sw.flush();
 		} else
@@ -853,9 +937,17 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			// (e.g. for ARP packet in opposite direction) exPired
 			// Changes:
 			// doFlowModStatic(switches.get(dp),command,(short)(PRIORITY_STATIC+1),(short)0,vlan,(short)0x800,BinTools.hexStringToBytes(getCacheMacAddress(dp)),0,client_macaddr,client_ipaddr,(byte)conet_proto,(short)0,(short)0,port);
-			doFlowModStatic(seen_switches.get(dp), command, (short) (PRIORITY_STATIC + 1), (short) 0, vlan, (short) 0x800,
-					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(getCacheIpAddress(dp))), null,
-					client_ipaddr, (byte) conet_proto, (short) 0, (short) 0, port);
+			
+//Old
+//			doFlowModStatic(seen_switches.get(dp), command, (short) (PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
+//					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(getCacheIpAddress(dp))), null,
+//					client_ipaddr, (byte) conet_proto, (short) 0, (short) 0, port);
+			
+			//Modified by Pier Luigi Ventre
+			doFlowModStatic(seen_switches.get(dp), command, (short) (PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
+					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cservers)),(int) 24, null,
+					client_ipaddr,-1, (byte) conet_proto, (short) 0, (short) 0, port);
+			
 			// Other attempt, that didn't work:
 			// doFlowModStatic(switches.get(dp),command,(short)(PRIORITY_STATIC+1),getCachePort(dp),vlan,(short)0x800,BinTools.hexStringToBytes(getCacheMacAddress(dp)),(int)BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(getCacheIpAddress(dp))),client_macaddr,client_ipaddr,(byte)conet_proto,(short)0,(short)0,port);
 			// doFlowModStatic(switches.get(dp),command,(short)(PRIORITY_STATIC+1),port,vlan,(short)0x800,client_macaddr,client_ipaddr,BinTools.hexStringToBytes(getCacheMacAddress(dp)),(int)BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(getCacheIpAddress(dp))),(byte)conet_proto,(short)0,(short)0,getCachePort(dp));
@@ -893,13 +985,25 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 
 			// @@@@@@
 			// doFlowModStatic(seen_switches.get(dp),OFFlowMod.OFPFC_ADD,PRIORITY_STATIC,(short)0,vlan,eth_proto,null,0,eth_src,(int)ip_src,(byte)conet_proto,(short)0,(short)0,Arrays.asList(actions),((short)actions_len));
-			doFlowModStatic(seen_switches.get(dp), command, PRIORITY_STATIC, (short) 0, vlan, (short) 0x800, null, 0,
-					client_macaddr, client_ipaddr, (byte) conet_proto, (short) 0, (short) 0, actions_vector,
+			
+			
+			doFlowModStatic(seen_switches.get(dp), command, PRIORITY_STATIC, (short) 0, vlan, (short) 0x800, 
+					null, (int)IPv4.toIPv4Address(servers), (int) 24,
+					client_macaddr, client_ipaddr,(int) -1, 
+					(byte) conet_proto, (short) 0, (short) 0, actions_vector,
 					((short) actions_len));
+		
+			
+			
 		} else { // SEND ONLY TO ICN-CLIENT
 					// doFlowModStatic(seen_switches.get(dp),OFFlowMod.OFPFC_ADD,PRIORITY_STATIC,(short)0,vlan,eth_proto,null,0,eth_src,(int)ip_src,(byte)conet_proto,(short)0,(short)0,port_in);
-			doFlowModStatic(seen_switches.get(dp), command, PRIORITY_STATIC, (short) 0, vlan, (short) 0x800, null, 0,
-					client_macaddr, client_ipaddr, (byte) conet_proto, (short) 0, (short) 0, port);
+
+			
+			doFlowModStatic(seen_switches.get(dp), command, PRIORITY_STATIC, (short) 0, vlan, (short) 0x800,
+					null, IPv4.toIPv4Address(servers), (int) 24,
+					client_macaddr, client_ipaddr, (int) -1,
+					(byte) conet_proto, (short) 0, (short) 0, port);
+		
 		}
 	}
 
@@ -908,8 +1012,12 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 		// SEND TO ICN-SERVER
 	    // @@@@@@
 		// doFlowModStatic(seen_switches.get(dp),OFFlowMod.OFPFC_ADD,(short)(PRIORITY_STATIC+1),(short)0,vlan,eth_proto,null,0,eth_src,(int)ip_src,(byte)conet_proto,(short)0,(short)0,(short)port_in);
-		doFlowModStatic(seen_switches.get(dp), command, (short) (PRIORITY_STATIC + 1), (short) 0, vlan, (short) 0x800, null,
-				0, server_macaddr, server_ipaddr, (byte) conet_proto, (short) 0, (short) 0, port);
+
+		doFlowModStatic(seen_switches.get(dp), command, (short) (PRIORITY_STATIC + 1), (short) 0, vlan, (short) 0x800, 
+				null, IPv4.toIPv4Address(clients), (int) 24, 
+				server_macaddr, server_ipaddr, (int) -1,
+				(byte) conet_proto, (short) 0, (short) 0, port);
+
 	}
 
 	// ***************************** Process message
@@ -1285,13 +1393,14 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			// removed
 			// from port map whenever a flow expires, so you would still see
 			// a lot of floods.
-			if (verbose)
+			
+			//if (verbose)
 				println("DEBUG: packet out to all ports");
 			doPacketOutForPacketIn(sw, pi, OFPort.OFPP_FLOOD.getValue());
 		} else if (outPort == match.getInputPort()) {
-			if (verbose)
+			//if (verbose)
 				println("DEBUG: port_in == port_out: packet ignored");
-			if (verbose && LEARNING_SWITCH_VERBOSE)
+			//if (verbose && LEARNING_SWITCH_VERBOSE)
 				println("LearningSwitch: processPacketInMessage(): ignoring packet that arrived on same port as learned destination:"
 						+ " switch " + sw + " vlan " + vlan + " dest MAC " + Long.toString(destMac, 16) + " port " + outPort);
 		} else { // Add flow table entry matching source MAC, dest MAC, VLAN and
@@ -1302,7 +1411,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 					// device moves to a different port, a constant stream of packets headed to
 					// the device at its former location does not keep the stale entry alive
 					// forever.
-			if (verbose)
+			//if (verbose)
 				println("DEBUG: packet out to port " + outPort + " (and flow add)");
 			doFlowAddForPacketIn(sw, pi, outPort);
 		}
@@ -1340,6 +1449,7 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			println("LearningSwitch: processFlowRemovedMessage(): " + sw + " flow entry removed " + flowRemovedMessage);*/
 		println("LearningSwitch: processFlowRemovedMessage(): " + sw + " flow entry removed " + flowRemovedMessage);
 		OFMatch match = flowRemovedMessage.getMatch();
+		this.println("OFMATCH: " + match);
 		// When a flow entry expires, it means the device with the matching
 		// source
 		// MAC address and VLAN either stopped sending packets or moved to a
@@ -1409,6 +1519,10 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 
 		// send PacketOut message
 		try {
+			if(this.debug_multi_cs){
+				this.println("Send PacketOutMessage - No Flow MOD");
+				this.println("POUT Message:" + po);
+			}
 			sw.write(po, cntx);
 		} catch (IOException e) {
 			printException(e);
@@ -1419,32 +1533,35 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	// ***************************
 
 	/** Sends a FlowMod message for a PacketIn. */
-	protected void doFlowAddForPacketIn(IOFSwitch sw, OFPacketIn pi, short[] ports_out) { 
-		// read in packet data headers by using OFMatch
-		
-		OFMatch match = new OFMatch();
-		// match.loadFromPacket(pi.getPacketData(),pi.getInPort(),sw.getId());
-		match.loadFromPacket(pi.getPacketData(), pi.getInPort());
 
-		// set match
-		// FIXME: current HP switches ignore DL_SRC and DL_DST fields, so we
-		// have to match on
-		// NW_SRC and NW_DST as well
-		// SS: I have now set the match ony to DL_SRC, DL_DST, DL_TYPE
-		// match.setWildcards(((Integer)sw.getAttribute(IOFSwitch.PROP_FASTWILDCARDS)).intValue()
+// 	NOT USED NOW
+	
+//	protected void doFlowAddForPacketIn(IOFSwitch sw, OFPacketIn pi, short[] ports_out) { 
+//		// read in packet data headers by using OFMatch
+//		
+//		OFMatch match = new OFMatch();
+//		// match.loadFromPacket(pi.getPacketData(),pi.getInPort(),sw.getId());
+//		match.loadFromPacket(pi.getPacketData(), pi.getInPort());
+//
+//		// set match
+//		// FIXME: current HP switches ignore DL_SRC and DL_DST fields, so we
+//		// have to match on
+//		// NW_SRC and NW_DST as well
+//		// SS: I have now set the match ony to DL_SRC, DL_DST, DL_TYPE
+//		// match.setWildcards(((Integer)sw.getAttribute(IOFSwitch.PROP_FASTWILDCARDS)).intValue()
+////		match.setWildcards(OFMatch.OFPFW_ALL & ~OFMatch.OFPFW_IN_PORT & ~OFMatch.OFPFW_DL_VLAN & ~OFMatch.OFPFW_DL_SRC
+////				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE & ~OFMatch.OFPFW_NW_PROTO & ~OFMatch.OFPFW_NW_SRC_MASK
+////				& ~OFMatch.OFPFW_NW_DST_MASK & ~OFMatch.OFPFW_TP_SRC & ~OFMatch.OFPFW_TP_DST);
 //		match.setWildcards(OFMatch.OFPFW_ALL & ~OFMatch.OFPFW_IN_PORT & ~OFMatch.OFPFW_DL_VLAN & ~OFMatch.OFPFW_DL_SRC
-//				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE & ~OFMatch.OFPFW_NW_PROTO & ~OFMatch.OFPFW_NW_SRC_MASK
-//				& ~OFMatch.OFPFW_NW_DST_MASK & ~OFMatch.OFPFW_TP_SRC & ~OFMatch.OFPFW_TP_DST);
-		match.setWildcards(OFMatch.OFPFW_ALL & ~OFMatch.OFPFW_IN_PORT & ~OFMatch.OFPFW_DL_VLAN & ~OFMatch.OFPFW_DL_SRC
-				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE );
-
-		// set actions
-		OFAction[] actions = new OFAction[ports_out.length];
-		for (int i = 0; i < actions.length; i++)
-			actions[i] = new OFActionOutput(ports_out[i], (short) 0xffff);
-		doFlowMod(sw, OFFlowMod.OFPFC_ADD, pi.getBufferId(), match, Arrays.asList(actions),
-				((short) actions.length * OFActionOutput.MINIMUM_LENGTH));
-	}
+//				& ~OFMatch.OFPFW_DL_DST & ~OFMatch.OFPFW_DL_TYPE );
+//
+//		// set actions
+//		OFAction[] actions = new OFAction[ports_out.length];
+//		for (int i = 0; i < actions.length; i++)
+//			actions[i] = new OFActionOutput(ports_out[i], (short) 0xffff);
+//		doFlowMod(sw, OFFlowMod.OFPFC_ADD, pi.getBufferId(), match, Arrays.asList(actions),
+//				((short) actions.length * OFActionOutput.MINIMUM_LENGTH));
+//	}
 
 	/** Sends a FlowMod message for a PacketIn. */
 	protected void doFlowAddForPacketIn(IOFSwitch sw, OFPacketIn pi, short port_out) { 
@@ -1520,40 +1637,43 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	// *****************************
 
 	/** Modifies (adds or deletes) a static flow entry. */
-	protected void doFlowModStatic(IOFSwitch sw, short command, short priority, short port_in, short vlan,
-			short eth_proto, byte[] src_macaddr, int src_ipaddr, byte[] dest_macaddr, int dest_ipaddr, byte ip_proto,
-			long tag, short port_out) {
-		long src_tport = (tag >> 16) & 0xFFFF;
-		long dest_tport = tag & 0xFFFF;
-		doFlowModStatic(sw, command, priority, port_in, vlan, eth_proto, src_macaddr, src_ipaddr, dest_macaddr,
-				dest_ipaddr, ip_proto, (short) src_tport, (short) dest_tport, port_out);
-	}
+
+//	NOT USED
+//	
+//	protected void doFlowModStatic(IOFSwitch sw, short command, short priority, short port_in, short vlan,
+//			short eth_proto, byte[] src_macaddr, int src_ipaddr, int cidr_src, byte[] dest_macaddr, int dest_ipaddr, int cidr_dst, byte ip_proto,
+//			long tag, short port_out) {
+//		long src_tport = (tag >> 16) & 0xFFFF;
+//		long dest_tport = tag & 0xFFFF;
+//		doFlowModStatic(sw, command, priority, port_in, vlan, eth_proto, src_macaddr, src_ipaddr, cidr_src, dest_macaddr,
+//				dest_ipaddr, cidr_dst, ip_proto, (short) src_tport, (short) dest_tport, port_out);
+//	}
 
 	/** Modifies (adds or deletes) a static flow entry. */
 	protected void doFlowModStatic(IOFSwitch sw, short command, short priority, short port_in, short vlan,
-			short eth_proto, byte[] src_macaddr, int src_ipaddr, byte[] dest_macaddr, int dest_ipaddr, byte ip_proto,
+			short eth_proto, byte[] src_macaddr, int src_ipaddr, int cidr_src, byte[] dest_macaddr, int dest_ipaddr, int cidr_dst, byte ip_proto,
 			short src_tport, short dest_tport, short port_out) { // if
 																	// (command==OFFlowMod.OFPFC_DELETE)
 																	// port_out=OFPort.OFPP_NONE.getValue();
 		List<OFAction> actions = Arrays.asList((OFAction) new OFActionOutput(port_out, (short) 0xffff));
 		int actions_len = OFActionOutput.MINIMUM_LENGTH;
-		doFlowModStatic(sw, command, priority, port_in, vlan, eth_proto, src_macaddr, src_ipaddr, dest_macaddr,
-				dest_ipaddr, ip_proto, src_tport, dest_tport, actions, actions_len);
+		doFlowModStatic(sw, command, priority, port_in, vlan, eth_proto, src_macaddr, src_ipaddr, cidr_src, dest_macaddr,
+				dest_ipaddr, cidr_dst, ip_proto, src_tport, dest_tport, actions, actions_len);
 	}
 
 	/** Modifies (adds or deletes) a static flow entry. */
 	protected void doFlowModStatic(IOFSwitch sw, short command, short priority, short port_in, short vlan,
-			short eth_proto, byte[] src_macaddr, int src_ipaddr, byte[] dest_macaddr, int dest_ipaddr, byte ip_proto,
+			short eth_proto, byte[] src_macaddr, int src_ipaddr, int cidr_src, byte[] dest_macaddr, int dest_ipaddr, int cidr_dst, byte ip_proto,
 			long tag, List<OFAction> actions, int actions_len) {
 		long src_tport = (tag >> 16) & 0xFFFF;
 		long dest_tport = tag & 0xFFFF;
-		doFlowModStatic(sw, command, priority, port_in, vlan, eth_proto, src_macaddr, src_ipaddr, dest_macaddr,
-				dest_ipaddr, ip_proto, (short) src_tport, (short) dest_tport, actions, actions_len);
+		doFlowModStatic(sw, command, priority, port_in, vlan, eth_proto, src_macaddr, src_ipaddr, cidr_src, dest_macaddr,
+				dest_ipaddr, cidr_dst, ip_proto, (short) src_tport, (short) dest_tport, actions, actions_len);
 	}
 
 	/** Modifies (adds or deletes) a static flow entry. */
 	protected void doFlowModStatic(IOFSwitch sw, short command, short priority, short port_in, short vlan,
-			short eth_proto, byte[] src_macaddr, int src_ipaddr, byte[] dest_macaddr, int dest_ipaddr, byte ip_proto,
+			short eth_proto, byte[] src_macaddr, int src_ipaddr,int cidr_src, byte[] dest_macaddr, int dest_ipaddr, int cidr_dst, byte ip_proto,
 			short src_tport, short dest_tport, List<OFAction> actions, int actions_len) {
 		OFMatch match = new OFMatch();
 		// int wildcards=OFMatch.OFPFW_ALL;
@@ -1580,11 +1700,21 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 			match.setDataLayerType(eth_proto);
 		}
 		if (src_ipaddr != 0) {
-			wildcards &= ~OFMatch.OFPFW_NW_SRC_MASK;
+			if(cidr_src >= 0){
+				int wildcard_bit_in_ip_src = Math.max(0, 32 - cidr_src);
+				wildcards = ((wildcards & ~OFMatch.OFPFW_NW_SRC_MASK) | (wildcard_bit_in_ip_src << OFMatch.OFPFW_NW_SRC_SHIFT));
+			}
+			else
+				wildcards &= ~OFMatch.OFPFW_NW_SRC_MASK;
 			match.setNetworkSource(src_ipaddr);
 		}
 		if (dest_ipaddr != 0) {
-			wildcards &= ~OFMatch.OFPFW_NW_DST_MASK;
+			if(cidr_dst >= 0){
+				int wildcard_bit_in_ip_dst = Math.max(0, 32 - cidr_dst);
+				wildcards = (wildcards & ~OFMatch.OFPFW_NW_DST_MASK) | (wildcard_bit_in_ip_dst << OFMatch.OFPFW_NW_DST_SHIFT);
+			}
+			else
+				wildcards &= ~OFMatch.OFPFW_NW_DST_MASK;
 			match.setNetworkDestination(dest_ipaddr);
 		}
 		if (src_tport != 0 || dest_tport != 0) {
@@ -1636,21 +1766,24 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 	}
 
 	/** Deletes all flowtable entries. */
-	public void doFlowModDeleteAll() {
-		println("DEBUG: DELETE ALL STATIC FLOW ENTRIES (FOR ALL SWITCHES)");
-		for (Enumeration<IOFSwitch> e = seen_switches.elements(); e.hasMoreElements();) {
-			IOFSwitch sw = e.nextElement();
-			doFlowModDeleteAll(sw, (short) 0);
-		}
-	}
+
+//	NOT USED
+//	
+//	public void doFlowModDeleteAll() {
+//		println("DEBUG: DELETE ALL STATIC FLOW ENTRIES (FOR ALL SWITCHES)");
+//		for (Enumeration<IOFSwitch> e = seen_switches.elements(); e.hasMoreElements();) {
+//			IOFSwitch sw = e.nextElement();
+//			doFlowModDeleteAll(sw, (short) 0);
+//		}
+//	}
 
 	/** Delete all flowtable entries. */
 	protected void doFlowModDeleteAll(IOFSwitch sw, short vlan) {
 		println();
 		println("DEBUG: DELETE ALL STATIC FLOW ENTRIES FOR SW 0x" + Long.toHexString(sw.getId()));
 		// doFlowModStatic(sw,OFFlowMod.OFPFC_DELETE,(short)0,(short)0,vlan,(short)0,null,(int)0,null,(int)0,(byte)0,(short)0,(short)0,(short)-1);
-		doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, vlan, (short) 0x800, null, (int) 0, null,
-				(int) 0, (byte) 0, (short) 0, (short) 0, null, 0);
+		doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, vlan, (short) 0x800, null, (int) IPv4.toIPv4Address(net) , (int) bit_net,
+				null, (int) IPv4.toIPv4Address(net), (int) bit_net, (byte) conet_proto, (short) 0, (short) 0, null, 0);
 	}
 
 	// ******************************* Test methods
@@ -1668,38 +1801,38 @@ public class ConetModule implements IFloodlightModule, IOFMessageListener, MsgTr
 
 	// ONLY FOR TEST:
 	/** Deletes all flowtable entries. */
-	public void testDeleteAllFlowTableEntries() {
-		println("DELETE ALL FLOWTABLE STATIC ENTRIES (METHOD 2)");
-		// set match types to attach flowmod
-		OFMatch match = new OFMatch();
-		match.setDataLayerType(Ethernet.TYPE_IPv4);
-		// match.setNetworkProtocol(IPv4.PROTOCOL_UDP);
-		// match.setTransportDestination((short)tp_dst);
-		// send flow_mod delete
-		OFFlowMod flowMod = (OFFlowMod) floodlightProvider.getOFMessageFactory().getMessage(OFType.FLOW_MOD);
-		// match.setWildcards(~(OFMatch.OFPFW_DL_TYPE | OFMatch.OFPFW_NW_PROTO |
-		// OFMatch.OFPFW_TP_DST));
-		match.setWildcards(~(OFMatch.OFPFW_DL_TYPE));
-		flowMod.setOutPort(OFPort.OFPP_NONE);
-		flowMod.setMatch(match);
-		flowMod.setCommand(OFFlowMod.OFPFC_DELETE);
-
-		Map<Long, IOFSwitch> switches = floodlightProvider.getSwitches();
-		for (IOFSwitch ofSwitch : switches.values()) {
-			if (ofSwitch == null) {
-				println("DEBUG: "+ ofSwitch + " Switch is not connected!");
-				continue;
-			}
-			try {
-				println("DEBUG: " + ofSwitch + " DELETE static flow entry " + flowMod);
-				ofSwitch.write(flowMod, null);
-				ofSwitch.flush();
-			} catch (IOException e) {
-				println("DEBUG: tried to write flow_mod delete to " + ofSwitch.getId() + " but failed: "
-						+ e.getMessage());
-			}
-		}
-	}
+//	public void testDeleteAllFlowTableEntries() {
+//		println("DELETE ALL FLOWTABLE STATIC ENTRIES (METHOD 2)");
+//		// set match types to attach flowmod
+//		OFMatch match = new OFMatch();
+//		match.setDataLayerType(Ethernet.TYPE_IPv4);
+//		// match.setNetworkProtocol(IPv4.PROTOCOL_UDP);
+//		// match.setTransportDestination((short)tp_dst);
+//		// send flow_mod delete
+//		OFFlowMod flowMod = (OFFlowMod) floodlightProvider.getOFMessageFactory().getMessage(OFType.FLOW_MOD);
+//		// match.setWildcards(~(OFMatch.OFPFW_DL_TYPE | OFMatch.OFPFW_NW_PROTO |
+//		// OFMatch.OFPFW_TP_DST));
+//		match.setWildcards(~(OFMatch.OFPFW_DL_TYPE));
+//		flowMod.setOutPort(OFPort.OFPP_NONE);
+//		flowMod.setMatch(match);
+//		flowMod.setCommand(OFFlowMod.OFPFC_DELETE);
+//
+//		Map<Long, IOFSwitch> switches = floodlightProvider.getSwitches();
+//		for (IOFSwitch ofSwitch : switches.values()) {
+//			if (ofSwitch == null) {
+//				println("DEBUG: "+ ofSwitch + " Switch is not connected!");
+//				continue;
+//			}
+//			try {
+//				println("DEBUG: " + ofSwitch + " DELETE static flow entry " + flowMod);
+//				ofSwitch.write(flowMod, null);
+//				ofSwitch.flush();
+//			} catch (IOException e) {
+//				println("DEBUG: tried to write flow_mod delete to " + ofSwitch.getId() + " but failed: "
+//						+ e.getMessage());
+//			}
+//		}
+//	}
 
 	// ******************************* Log methods
 	// *******************************
