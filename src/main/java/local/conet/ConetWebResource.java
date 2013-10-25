@@ -2,11 +2,8 @@ package local.conet;
 
 
 
-import local.conet.ConetModule;
-import local.conet.ConetModule.CachedContent;
 
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Map;
 
 import org.restlet.resource.Get;
@@ -41,14 +38,19 @@ public class ConetWebResource extends ServerResource
         HashMap<String,Object> result=new HashMap<String,Object>();
         ConetModule conet_module=ConetModule.INSTANCE;
 
-        // TAG-BASED FORWARDING: tbf_command=start|stop|info
-        if (tbf_command!=null)
-        {   if (tbf_command.equals("start")) conet_module.setTBF(true);
-            else
-            if (tbf_command.equals("stop")) conet_module.setTBF(false);
-
+        // TAG-BASED FORWARDING: tbf_command=TBFF|TBF|NOTBF|INFO
+        if(tbf_command!=null)
+        {   
+        	if(!conet_module.debug_learning_switch_only){
+	        	if(tbf_command.equalsIgnoreCase("TBFF")) 
+	        		conet_module.setTBF(ConetMode.TBFF);
+	            else if(tbf_command.equals("TBF")) 
+	            	conet_module.setTBF(ConetMode.TBF);
+	            else if(tbf_command.equals("NOTBF"))
+	            	conet_module.setTBF(ConetMode.NOTBF);
+        	}
             TagBasedFW tag_based_fw=new TagBasedFW();
-            tag_based_fw.tagbasedfw=((conet_module.getTBF())? "up" : "down");
+            tag_based_fw.tagbasedfw=conet_module.getTBF().name();
             result.put("all",tag_based_fw);
             return result;
         }

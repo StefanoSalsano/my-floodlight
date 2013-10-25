@@ -2,12 +2,8 @@ package local.conet;
 
 
 
-import local.conet.ConetModule;
-import local.conet.ConetModule.CachedContent;
 
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Map;
 
 import org.restlet.resource.Get;
@@ -40,17 +36,18 @@ public class ConetCoreWebResource extends ServerResource
         //String tbf_command=(String)getRequestAttributes().get("tbfCommand");
         
         ConetModule conet_module=ConetModule.INSTANCE;
-
+        
         if (switch_id.equalsIgnoreCase("all") && (stat_type.equalsIgnoreCase("tbff") || stat_type.equalsIgnoreCase("tbf") ||
         		stat_type.equalsIgnoreCase("notbf") || stat_type.equalsIgnoreCase("info")))
-        {   
-            if (stat_type.equalsIgnoreCase("tbff")) 
-            	conet_module.setTBF(ConetMode.TBFF);
-            else if (stat_type.equalsIgnoreCase("tbf"))
-            	conet_module.setTBF(ConetMode.TBF);
-            else if(stat_type.equalsIgnoreCase("notbf"))
-            	conet_module.setTBF(ConetMode.NOTBF);
-
+        {  
+        	if(!conet_module.debug_learning_switch_only){
+	            if (stat_type.equalsIgnoreCase("tbff")) 
+	            	conet_module.setTBF(ConetMode.TBFF);
+	            else if (stat_type.equalsIgnoreCase("tbf"))
+	            	conet_module.setTBF(ConetMode.TBF);
+	            else if(stat_type.equalsIgnoreCase("notbf"))
+	            	conet_module.setTBF(ConetMode.NOTBF);
+        	}
             TagBasedFW tag_based_fw=new TagBasedFW();
             tag_based_fw.tagbasedfw=conet_module.getTBF().name();
             result.put(switch_id,tag_based_fw);
