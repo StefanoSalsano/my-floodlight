@@ -287,9 +287,9 @@ public class HandlerMultiCS extends Handler {
 		ConetModule ctemp = ConetModule.INSTANCE;
 		if(ctemp.debug_multi_cs)
 			ctemp.println("FORWARD TO CLIENT");																											// 
-		if (ctemp.debug_disable_redirection) {
+		if (!ctemp.debug_disable_redirection) {
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER, OTHERWISE SEND TO BOTH ICN-CLIENT AND TO CACHE-SERVER
-
+			ctemp.println("SEND TO BOTH ICN-CLIENT AND CACHE SERVER");
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER
 			// @@@@@@
 			// //doFlowModStatic(switches.get(dp),OFFlowMod.OFPFC_ADD,(short)(PRIORITY_STATIC+1),(short)0,vlan,eth_proto,BinTools.hexStringToBytes(getCacheMacAddress(dp)),0,eth_src,ip_src,(byte)conet_proto,(short)0,(short)0,port_in);
@@ -363,7 +363,9 @@ public class HandlerMultiCS extends Handler {
 			// SEND ONLY TO ICN-CLIENT
 			// doFlowModStatic(seen_switches.get(dp),OFFlowMod.OFPFC_ADD,PRIORITY_STATIC,(short)0,vlan,eth_proto,
 			// null,0,eth_src,(int)ip_src,(byte)conet_proto,(short)0,(short)0,port_in);
-
+			
+			ctemp.println("SEND ONLY TO ICN-CLIENT");
+			
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
 					null, IPv4.toIPv4Address(ctemp.servers), (int) 24,
 					client_macaddr, client_ipaddr, (int) -1,

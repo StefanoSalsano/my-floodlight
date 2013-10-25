@@ -163,7 +163,7 @@ public class Handler {
 	/*
 	 * Default Behavior for now, it was copied from original ConetModule 
 	 */
-	protected Command processFlowRemovedMessage(IOFSwitch sw, OFFlowRemoved flowRemovedMessage) {
+	public Command processFlowRemovedMessage(IOFSwitch sw, OFFlowRemoved flowRemovedMessage) {
 		ConetModule cmodule = ConetModule.INSTANCE;
 		if (flowRemovedMessage.getCookie() != ConetModule.LEARNING_SWITCH_COOKIE) {
 			return Command.CONTINUE;
