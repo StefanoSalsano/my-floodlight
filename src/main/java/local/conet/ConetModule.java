@@ -346,9 +346,20 @@ public class ConetModule implements IFloodlightModule {
 			total = total + getCachedItems( datapathStr);
 		}
 		return total;
-			
 	}
 
+	public HashMap <String, Object> getCachedItemsMap() {
+		HashMap <String, Object> myHM = new HashMap <String, Object>();
+		//CachedContent[] myArray = new CachedContent[0];
+		for (Enumeration i = cached_contents.keys(); i.hasMoreElements();) {
+			String datapathStr = (String) i.nextElement();
+			int item_num = getCachedItems( datapathStr);
+			myHM.put(datapathStr, item_num);
+		}
+		return myHM;
+		
+	}
+	
 	/** Gets total number of cached items in a specific datapath */
 	public int getCachedItems(String datapathStr) {
 		Hashtable <String , CachedContent> myHT = cached_contents.get(datapathStr);
