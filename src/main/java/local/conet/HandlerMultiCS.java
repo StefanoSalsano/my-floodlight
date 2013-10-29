@@ -209,7 +209,7 @@ public class HandlerMultiCS extends Handler {
 		JSONObject json_message = (JSONObject) JSONValue.parse(msg.toString());
 		
 		if(cmodule.debug_multi_cs)
-			cmodule.println("Json message: " + json_message.toString());
+			cmodule.println("Handler MultiCS CALL ProcessCacheServerMessage Json message: " + json_message.toString());
 		
 		String type = json_message.get("type").toString();
 		
@@ -282,11 +282,11 @@ public class HandlerMultiCS extends Handler {
 	/*
 	 * Adds/deletes forwarding to icn-client and cache-server.
 	 */
-	private void forwardToClient(long dp, short command, short vlan, byte[] client_macaddr, int client_ipaddr, short port) {
+	protected void forwardToClient(long dp, short command, short vlan, byte[] client_macaddr, int client_ipaddr, short port) {
 		// SEND TO ICN-CLIENT AND EVENTUALLY TO CACHE-SERVER
 		ConetModule ctemp = ConetModule.INSTANCE;
 		if(ctemp.debug_multi_cs)
-			ctemp.println("FORWARD TO CLIENT");																											// 
+			ctemp.println("Handler MultiCS FORWARD TO CLIENT");																											// 
 		if (!ctemp.debug_disable_redirection) {
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER, OTHERWISE SEND TO BOTH ICN-CLIENT AND TO CACHE-SERVER
 			ctemp.println("SEND TO BOTH ICN-CLIENT AND CACHE SERVER");
@@ -379,7 +379,7 @@ public class HandlerMultiCS extends Handler {
 		// SEND TO ICN-SERVER
 		ConetModule ctemp = ConetModule.INSTANCE;
 		if(ctemp.debug_multi_cs)
-			ctemp.println("FORWARD TO Server");	
+			ctemp.println("HandlerMultiCS FORWARD TO Server");	
 		
 		// @@@@@@
 		// doFlowModStatic(seen_switches.get(dp),OFFlowMod.OFPFC_ADD,(short)(PRIORITY_STATIC+1),(short)0,vlan,eth_proto,null,0,eth_src,

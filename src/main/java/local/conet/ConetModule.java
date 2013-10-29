@@ -200,6 +200,9 @@ public class ConetModule implements IFloodlightModule {
 	public String net = "";
 	public int bit_net = 0;
 	
+	public String homeserver_range[] = new String[0];
+		public HashMap<Long, String> mapping_server_to_sw;
+	
 	private FlowModLogger flowmodlistener;
 	private ConetListener conetlistener;
 
@@ -213,54 +216,76 @@ public class ConetModule implements IFloodlightModule {
 		return this.conetlistener.getMode();
 	}
 	
-	private long ipToLong(String ip) {
-        byte[] octets = BinAddrTools.ipv4addrToBytes(ip);
-        long result = 0;
-        for (byte octet : octets) {
-            result <<= 8;
-            result |= octet & 0xff;
-        }
-        return result;
-    }
+//	private long ipToLong(String ip) {
+//        byte[] octets = BinAddrTools.ipv4addrToBytes(ip);
+//        long result = 0;
+//        for (byte octet : octets) {
+//            result <<= 8;
+//            result |= octet & 0xff;
+//        }
+//        return result;
+//    }
+//
+//	/*
+//	 * Check if the ip belongs to the range
+//	 */
+//	public boolean doyoubelongtotherange(String ip, String range[]){
+//		if(this.debug_multi_cs)
+//			this.println("CALL DO YOU BELONG");
+//		long inf = this.ipToLong(range[0]);
+//		long sup = this.ipToLong(range[1]);
+//		long toverify = this.ipToLong(ip);
+//		this.println("INF: " + range[0] + " - " + inf);
+//		this.println("SUP: " + range[1] + " - " + sup);
+//		this.println("toverify: " + ip + " - " + toverify);
+//		return (toverify > inf && toverify < sup) ? true : false;
+//	}
 
-
-	public boolean is_client(String key) {
-		if(this.debug_multi_cs)
-			this.println("CALL IS_CLIENT");
-		long inf = this.ipToLong(clients);
-		long sup = this.ipToLong(servers);
-		long toverify = this.ipToLong(key);
-		this.println("INF: " + clients + " - " + inf);
-		this.println("SUP: " + servers + " - " + sup);
-		this.println("toverify: " + key + " - " + toverify);
-		return (toverify > inf && toverify < sup) ? true : false;
-	}
+//	public boolean is_client(String key, String infip, String supip) {
+//		if(this.debug_multi_cs)
+//			this.println("CALL IS_CLIENT");
+//		long inf = this.ipToLong(infip);
+//		long sup = this.ipToLong(supip);
+//		long toverify = this.ipToLong(key);
+//		this.println("INF: " + infip + " - " + inf);
+//		this.println("SUP: " + supip + " - " + sup);
+//		this.println("toverify: " + key + " - " + toverify);
+//		return (toverify > inf && toverify < sup) ? true : false;
+//	}
+//	
+//	public boolean is_server(String key, String infip, String supip) {
+//		if(this.debug_multi_cs)
+//			this.println("CALL IS_SERVERS");
+//		long inf = this.ipToLong(infip);
+//		long sup = this.ipToLong(supip);
+//		long toverify = this.ipToLong(key);
+//		this.println("INF: " + infip + " - " + inf);
+//		this.println("SUP: " + supip + " - " + sup);
+//		this.println("toverify: " + key + " - " + toverify);
+//		return (toverify > inf && toverify < sup) ? true : false;
+//	}
+//	
+//	public boolean is_cserver(String key) {
+//		if(this.debug_multi_cs)
+//			this.println("CALL IS_CSERVERS");
+//		long inf = this.ipToLong(cservers);
+//		long sup = this.ipToLong("192.168.192.0");
+//		long toverify = this.ipToLong(key);
+//		this.println("INF: " + cservers + " - " + inf);
+//		// TODO Attenzione al SUP
+//		this.println("SUP: 192.168.192.0 - " + sup);
+//		this.println("toverify: " + key + " - " + toverify);
+//		return (toverify > inf && toverify < sup) ? true : false;
+//	}
 	
-	public boolean is_server(String key) {
-		if(this.debug_multi_cs)
-			this.println("CALL IS_SERVERS");
-		long inf = this.ipToLong(servers);
-		long sup = this.ipToLong(cservers);
-		long toverify = this.ipToLong(key);
-		this.println("INF: " + servers + " - " + inf);
-		this.println("SUP: " + cservers + " - " + sup);
-		this.println("toverify: " + key + " - " + toverify);
-		return (toverify > inf && toverify < sup) ? true : false;
+	public Pair<String, Integer> getHomeServerRange(long datapath) {
+		if(this.mapping_server_to_sw.containsKey(datapath)){
+			 String[] st = this.mapping_server_to_sw.get(datapath).split("\\/");
+			 return new Pair<String , Integer>(st[0],Integer.parseInt(st[1]));
+		}
+		
+		return null;
 	}
-	
-	public boolean is_cserver(String key) {
-		if(this.debug_multi_cs)
-			this.println("CALL IS_CSERVERS");
-		long inf = this.ipToLong(cservers);
-		long sup = this.ipToLong("192.168.192.0");
-		long toverify = this.ipToLong(key);
-		this.println("INF: " + cservers + " - " + inf);
-		// TODO Attenzione al SUP
-		this.println("SUP: 192.168.192.0 - " + sup);
-		this.println("toverify: " + key + " - " + toverify);
-		return (toverify > inf && toverify < sup) ? true : false;
-	}
-	
 
 	/** Gets cache server ip address for the given datapath. */
 	public String getCacheIpAddress(long datapath) {
@@ -507,9 +532,82 @@ public class ConetModule implements IFloodlightModule {
 			this.println("Clients: " + cservers + "/" + bit_cservers);
 		}
 		
+		this.buildConetMatrix();
+		this.printMapping();
 		
-
 	}
+
+	/*
+	 * This method build from configuration file the host matrix
+	 */
+	private void buildConetMatrix() {
+		this.mapping_server_to_sw =new HashMap<Long,String>();
+		StringTokenizer t;
+		String tempstring = "";
+		String tempIP1 = "";
+		
+		int i = 0;
+		while(i< this.homeserver_range.length){
+			t = new StringTokenizer(this.homeserver_range[i],"#");
+			tempIP1 = t.nextToken();
+			tempstring = t.nextToken();
+			this.mapping_server_to_sw.put(Long.parseLong(BinAddrTools.trimHexString(tempstring),16), tempIP1);
+			i++;
+		}
+		
+		
+//		int i = 0;
+//		while(i< this.sw_datapath.length){
+//			this.conet_clients_matrix[0][i] = this.sw_datapath[i];
+//			this.conet_servers_matrix[0][i] = this.sw_datapath[i];
+//			i++;
+//		}
+//		
+//		i = 0;
+//		int j = 0;
+//		int k = 1;
+//		
+//		String tempSW = "";
+//		String tempIP = "";
+//		while(j<this.conet_clients_matrix[0].length){
+//			k = 1;
+//			while(i<this.conet_clients.length){
+//				t = new StringTokenizer(this.conet_clients[i],"#");
+//				tempIP = t.nextToken();
+//				tempSW = BinAddrTools.trimHexString(t.nextToken());
+//				if(!tempSW.equals(this.sw_datapath[j]))
+//					break;
+//				this.conet_clients_matrix[k][j] = tempIP;
+//				i++;
+//				k++;
+//			}
+//			j++;
+//		}
+//		
+//		tempSW = "";
+//		tempIP = "";
+//		i = 0;
+//		j = 0;
+//		k = 1;
+//		while(j<this.conet_servers_matrix[0].length){
+//			k = 1;
+//			while(i<this.conet_servers.length){
+//				t = new StringTokenizer(this.conet_servers[i],"#");
+//				tempIP = t.nextToken();
+//				tempSW = BinAddrTools.trimHexString(t.nextToken());
+//				if(!tempSW.equals(this.sw_datapath[j]))
+//					break;
+//				this.conet_servers_matrix[k][j] = tempIP;
+//				i++;
+//				k++;
+//			}
+//			j++;
+//		}
+
+		
+	}
+		
+	
 
 	/**
 	 * This is a hook for each module to do its external initializations, e.g.,
@@ -962,7 +1060,22 @@ public class ConetModule implements IFloodlightModule {
 		// else
 		System.out.println("[" + Thread.currentThread().getName() + "]" + "***CONET*** " + str + "\n\n");
 	}
+	
+	private void print(String str, boolean first){
+		if (log != null)
+			log.print(str);
+		// else
+		if(first)
+			System.out.print("***CONET*** " + str);
+		else
+			System.out.println(str);
+	}
 
+	/** Prints Client or Server IP Matrix */
+	private void printMapping(){
+		this.println("MAPPING SERVER TO SWITCH");
+		this.println(this.mapping_server_to_sw.toString());
+	}
 	
 
 /*

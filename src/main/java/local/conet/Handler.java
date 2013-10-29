@@ -43,7 +43,7 @@ public class Handler {
 	 * Called from processConetPacketInMessage, when it 
 	 * is the active handler;
 	 */
-	private Command processPacketInMessage(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx) {
+	protected Command processPacketInMessage(IOFSwitch sw, OFPacketIn pi, FloodlightContext cntx) {
 		ConetModule cmodule = ConetModule.INSTANCE;
 		if(cmodule.debug_multi_cs)
 			cmodule.println("CALL HANDLER PROCESS PACKET IN");
