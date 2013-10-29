@@ -201,7 +201,6 @@ public class ConetModule implements IFloodlightModule {
 	public int bit_net = 0;
 	
 	public String homeserver_range[] = new String[0];
-		public HashMap<Long, String> mapping_server_to_sw;
 	
 	private FlowModLogger flowmodlistener;
 	private ConetListener conetlistener;
@@ -279,10 +278,11 @@ public class ConetModule implements IFloodlightModule {
 //	}
 	
 	public Pair<String, Integer> getHomeServerRange(long datapath) {
-		if(this.mapping_server_to_sw.containsKey(datapath)){
-			 String[] st = this.mapping_server_to_sw.get(datapath).split("\\/");
+		for (int i = 0; i < sw_datapath.length; i++)
+			if (sw_datapath_long[i] == datapath){
+			 String[] st = this.homeserver_range[i].split("\\/");
 			 return new Pair<String , Integer>(st[0],Integer.parseInt(st[1]));
-		}
+			}
 		
 		return null;
 	}
@@ -532,81 +532,10 @@ public class ConetModule implements IFloodlightModule {
 			this.println("Clients: " + cservers + "/" + bit_cservers);
 		}
 		
-		this.buildConetMatrix();
-		this.printMapping();
 		
 	}
 
-	/*
-	 * This method build from configuration file the host matrix
-	 */
-	private void buildConetMatrix() {
-		this.mapping_server_to_sw =new HashMap<Long,String>();
-		StringTokenizer t;
-		String tempstring = "";
-		String tempIP1 = "";
-		
-		int i = 0;
-		while(i< this.homeserver_range.length){
-			t = new StringTokenizer(this.homeserver_range[i],"#");
-			tempIP1 = t.nextToken();
-			tempstring = t.nextToken();
-			this.mapping_server_to_sw.put(Long.parseLong(BinAddrTools.trimHexString(tempstring),16), tempIP1);
-			i++;
-		}
-		
-		
-//		int i = 0;
-//		while(i< this.sw_datapath.length){
-//			this.conet_clients_matrix[0][i] = this.sw_datapath[i];
-//			this.conet_servers_matrix[0][i] = this.sw_datapath[i];
-//			i++;
-//		}
-//		
-//		i = 0;
-//		int j = 0;
-//		int k = 1;
-//		
-//		String tempSW = "";
-//		String tempIP = "";
-//		while(j<this.conet_clients_matrix[0].length){
-//			k = 1;
-//			while(i<this.conet_clients.length){
-//				t = new StringTokenizer(this.conet_clients[i],"#");
-//				tempIP = t.nextToken();
-//				tempSW = BinAddrTools.trimHexString(t.nextToken());
-//				if(!tempSW.equals(this.sw_datapath[j]))
-//					break;
-//				this.conet_clients_matrix[k][j] = tempIP;
-//				i++;
-//				k++;
-//			}
-//			j++;
-//		}
-//		
-//		tempSW = "";
-//		tempIP = "";
-//		i = 0;
-//		j = 0;
-//		k = 1;
-//		while(j<this.conet_servers_matrix[0].length){
-//			k = 1;
-//			while(i<this.conet_servers.length){
-//				t = new StringTokenizer(this.conet_servers[i],"#");
-//				tempIP = t.nextToken();
-//				tempSW = BinAddrTools.trimHexString(t.nextToken());
-//				if(!tempSW.equals(this.sw_datapath[j]))
-//					break;
-//				this.conet_servers_matrix[k][j] = tempIP;
-//				i++;
-//				k++;
-//			}
-//			j++;
-//		}
 
-		
-	}
-		
 	
 
 	/**
@@ -1071,12 +1000,6 @@ public class ConetModule implements IFloodlightModule {
 			System.out.println(str);
 	}
 
-	/** Prints Client or Server IP Matrix */
-	private void printMapping(){
-		this.println("MAPPING SERVER TO SWITCH");
-		this.println(this.mapping_server_to_sw.toString());
-	}
-	
 
 /*
  * ###############
@@ -1087,6 +1010,16 @@ public class ConetModule implements IFloodlightModule {
 	/////////////////// Application Logic
 	///////////////////
 
+	
+	//	/** Prints Client or Server IP Matrix */
+//	private void printMapping(){
+//		this.println("MAPPING SERVER TO SWITCH");
+//		this.println(this.mapping_server_to_sw.toString());
+//	}
+//	
+
+	
+	
 //	/**
 //	 * Deletes all flowtable entries for cached contents and clears the DB of
 //	 * cached contents.
