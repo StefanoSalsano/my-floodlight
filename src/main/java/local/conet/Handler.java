@@ -246,7 +246,7 @@ public class Handler {
 					if (!json_cache_mac_addr.equals(cmodule.getCacheMacAddress(datapath)))
 						cmodule.println("WARNING: cache MAC address mismatch!");
 					if (!cmodule.cached_contents.containsKey(dataPathStr))
-						cmodule.cached_contents.put(dataPathStr, new Hashtable());
+						cmodule.cached_contents.put(dataPathStr, new Hashtable<String, CachedContent>());
 	
 					// reset cached contents
 					flushAllContents(datapath);
@@ -330,6 +330,8 @@ public class Handler {
 						(int) cmodule.bit_servers, (byte) cmodule.conet_proto, tag);
 			}
 			myHT.clear();
+//			cmodule.cached_contents.put(cmodule.dpLong2String(datapath), new Hashtable<String, CachedContent>());
+//			System.gc();
 		}
 	}
 	
@@ -343,13 +345,16 @@ public class Handler {
 		Map<Long, IOFSwitch> switches = cmodule.floodlightProvider.getSwitches();
 		int i = 0;
 		while(i < cmodule.sw_datapath_long.length){
-			if(switches.containsKey(cmodule.sw_datapath_long[i])){
+			if(!switches.containsKey(cmodule.sw_datapath_long[i])){
 				cmodule.println("Trovato: " + cmodule.sw_datapath[i] + " - DELETE");
 				IOFSwitch sw = switches.get(cmodule.sw_datapath_long[i]);
 				cmodule.doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short) ConetModule.VLAN_ID, (short) 0x800, 
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net, 
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net,
 						(byte) cmodule.conet_proto, (short) 0, (short) 0, null, 0);
+				Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.sw_datapath[i]);
+				if(myHT != null)
+					myHT.clear();
 			}
 			else{
 				cmodule.println("Non Trovato: " + cmodule.sw_datapath[i]);

@@ -570,6 +570,9 @@ public class ConetModule implements IFloodlightModule {
 		IRestApiService restApi = context.getServiceImpl(IRestApiService.class);
 		restApi.addRestletRoutable(new ConetCoreWebRoutable());
 		restApi.addRestletRoutable(new ConetWebRoutable());
+		
+		//this.testInsertSomeCachedContents();
+		
 		// restApi.addRestletRoutable(new
 		// net.floodlightcontroller.core.web.CoreWebRoutable());
 
@@ -1011,6 +1014,8 @@ public class ConetModule implements IFloodlightModule {
 			System.out.println(str);
 	}
 
+	
+	
 
 /*
  * ###############
@@ -1021,6 +1026,24 @@ public class ConetModule implements IFloodlightModule {
 	/////////////////// Application Logic
 	///////////////////
 
+//	// ONLY FOR TEST:
+//			/** Inserts some cached contents, for testing. */
+//			public void testInsertSomeCachedContents() {
+//				println("DEBUG: INSERTS SOME CONTENTS FOR TESTING");
+//				this.cached_contents.put("0208020800000003", new Hashtable<String, CachedContent>());
+//				cached_contents.get("0208020800000003").put("869728095", new CachedContent("_example_1k3", 0, 869728095));
+//				cached_contents.get("0208020800000003").put("869728096", new CachedContent("_example_1k3", 1, 869728096));
+//				cached_contents.get("0208020800000003").put("869728097", new CachedContent("_example_1k3", 2, 869728097));
+//				cached_contents.get("0208020800000003").put("123456789", new CachedContent("_abc_def_ghi_jkl", 123, 123456789));
+//				this.cached_contents.put("0200000000000001", new Hashtable<String, CachedContent>());
+//				cached_contents.get("0200000000000001").put("869728095", new CachedContent("_example_1k3", 0, 869728095));
+//				cached_contents.get("0200000000000001").put("869728096", new CachedContent("_example_1k3", 1, 869728096));
+//				cached_contents.get("0200000000000001").put("869728097", new CachedContent("_example_1k3", 2, 869728097));
+//				cached_contents.get("0200000000000001").put("123456789", new CachedContent("_abc_def_ghi_jkl", 123, 123456789));
+//				cached_contents.get("0200000000000001").put("223456789", new CachedContent("_a1bc_def_ghi_jkl", 13, 223456789));
+//
+//			}
+	
 	
 	//	/** Prints Client or Server IP Matrix */
 //	private void printMapping(){
@@ -1886,15 +1909,7 @@ public class ConetModule implements IFloodlightModule {
 	// ******************************* Test methods
 	// ******************************
 
-	// ONLY FOR TEST:
-	/** Inserts some cached contents, for testing. */
-//	public void testInsertSomeCachedContents() {
-//		println("DEBUG: INSERTS SOME CONTENTS FOR TESTING");
-//		cached_contents.get("0010000000000005").put("869728095", new CachedContent("_example_1k3", 0, 869728095));
-//		cached_contents.get("0010000000000005").put("869728096", new CachedContent("_example_1k3", 1, 869728096));
-//		cached_contents.get("0010000000000005").put("869728097", new CachedContent("_example_1k3", 2, 869728097));
-//		cached_contents.get("0010000000000005").put("123456789", new CachedContent("_abc_def_ghi_jkl", 123, 123456789));
-//	}
+	
 
 	// ONLY FOR TEST:
 	/** Deletes all flowtable entries. */
