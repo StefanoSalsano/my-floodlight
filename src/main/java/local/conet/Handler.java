@@ -345,7 +345,7 @@ public class Handler {
 		Map<Long, IOFSwitch> switches = cmodule.floodlightProvider.getSwitches();
 		int i = 0;
 		while(i < cmodule.sw_datapath_long.length){
-			if(!switches.containsKey(cmodule.sw_datapath_long[i])){
+			if(switches.containsKey(cmodule.sw_datapath_long[i])){
 				cmodule.println("Trovato: " + cmodule.sw_datapath[i] + " - DELETE");
 				IOFSwitch sw = switches.get(cmodule.sw_datapath_long[i]);
 				cmodule.doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short) ConetModule.VLAN_ID, (short) 0x800, 
