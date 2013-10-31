@@ -29,6 +29,7 @@ import org.openflow.protocol.action.OFActionNetworkLayerDestination;
 import org.openflow.protocol.action.OFActionOutput;
 import org.zoolu.net.message.Message;
 import org.zoolu.net.message.MsgTransport;
+import org.zoolu.net.message.StringMessage;
 import org.zoolu.tools.BinAddrTools;
 import org.zoolu.tools.BinTools;
 
@@ -268,6 +269,21 @@ public class Handler {
 				 * [j])),(byte)conet_proto,tag); } cached_contents.clear();
 				 */
 				
+//		        JSONObject json_hello=new JSONObject();
+//				//json_hello.put("controller","10.216.33.109");
+//		        json_hello.put("controller","10.216.12.88");
+//		        json_hello.put("type","Connection setup reply");
+//		        Message msg_hello=new StringMessage(json_hello.toString());
+//				transport.sendMessage(msg);
+				
+			} else if (type.equalsIgnoreCase("Hello request") ) {
+		        JSONObject json_hello=new JSONObject();
+		        //json_hello.put("controller","10.216.33.109");
+		        json_hello.put("controller","10.216.12.88");
+		        json_hello.put("type","Hello reply");
+		        Message msg_hello=new StringMessage(json_hello.toString());
+		        cmodule.println("RECEIVED Hello request - SENDING Hello Reply");
+				transport.sendMessage(msg);
 			}
 			
 		} catch (Exception e) {
