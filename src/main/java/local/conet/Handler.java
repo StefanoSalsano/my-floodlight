@@ -27,6 +27,7 @@ import org.openflow.protocol.action.OFActionDataLayerDestination;
 import org.openflow.protocol.action.OFActionDataLayerSource;
 import org.openflow.protocol.action.OFActionNetworkLayerDestination;
 import org.openflow.protocol.action.OFActionOutput;
+import org.openflow.util.U16;
 import org.zoolu.net.message.Message;
 import org.zoolu.net.message.MsgTransport;
 import org.zoolu.net.message.StringMessage;
@@ -169,13 +170,39 @@ public class Handler {
 		if (flowRemovedMessage.getCookie() != ConetModule.LEARNING_SWITCH_COOKIE) {
 			return Command.CONTINUE;
 		}
-		
 		if(cmodule.debug_multi_cs)
 			cmodule.println("LearningSwitch: processFlowRemovedMessage(): " + sw + " flow entry removed " + flowRemovedMessage);
 		OFMatch match = flowRemovedMessage.getMatch();
 		if(cmodule.debug_multi_cs)
 			cmodule.println("OFMATCH: " + match);
 		
+		short VLAN = match.getDataLayerVirtualLan();
+		short ETH_PROTO = match.getDataLayerType();
+		int IP_PROTO = BinTools.uByte(match.getNetworkProtocol());
+		int IP_SRC = match.getNetworkSource();
+		int SRC_MASK_LEN = match.getNetworkSourceMaskLen();
+		int IP_DST = match.getNetworkDestination();
+		int DST_MASK_LEN = match.getNetworkDestinationMaskLen();
+		int TP_SRC = U16.f(match.getTransportSource());
+		int TP_DST = U16.f(match.getTransportDestination());
+		long TAG = (((long) TP_SRC) << 16) + ((long) TP_DST);
+		
+		if(cmodule.debug_multi_cs)
+			cmodule.println("FLOW REMOVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),vlan=" + VLAN
+					+ ", eth_proto=0x" + Integer.toHexString(U16.f(ETH_PROTO))
+					+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_SRC)) + "/" + SRC_MASK_LEN
+					+ ", ip_dst=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_DST)) + "/" + DST_MASK_LEN
+					+ ", ip_proto=0x" + Integer.toHexString(IP_PROTO) + ", tag=0x" + Long.toHexString(TAG));
+		if(this.isTaggedRule(VLAN, ETH_PROTO, IP_PROTO, IP_SRC, SRC_MASK_LEN, TAG)){
+			//The flow removed is Conet
+			if(cmodule.debug_multi_cs)
+				cmodule.println("Conet Flow");
+			cmodule.removeItemsFromMap(sw.getId(),TAG);
+			return Command.CONTINUE;
+		}
+		// Not Conet Flow
+		if(cmodule.debug_multi_cs)
+			cmodule.println("Not Conet Flow");
 		// When a flow entry expires, it means the device with the matching
 		// source MAC address and VLAN either stopped sending packets or moved 
 		// to a different port. If the device moved, we can't know where it went
@@ -196,6 +223,17 @@ public class Handler {
 				.setNetworkDestination(match.getNetworkSource()).setTransportSource(match.getTransportDestination())
 				.setTransportDestination(match.getTransportSource()), match.getInputPort());
 		return Command.CONTINUE;
+		
+
+	}
+
+	protected boolean isTaggedRule(short vLAN, short eTH_PROTO, int iP_PROTO, int iP_SRC, int sRC_MASK_LEN, long tAG) {
+		ConetModule ctemp = ConetModule.INSTANCE;
+		if(vLAN == ConetModule.VLAN_ID && eTH_PROTO == (short)0x800
+				&& (iP_PROTO == ctemp.conet_proto && iP_SRC == IPv4.toIPv4Address(ctemp.clients) && sRC_MASK_LEN == ctemp.bit_clients)
+				&& tAG != 0)
+			return true;
+		return false;
 	}
 
 	/*
@@ -351,7 +389,7 @@ public class Handler {
 				cmodule.doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short) ConetModule.VLAN_ID, (short) 0x800, 
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net, 
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net,
-						(byte) cmodule.conet_proto, (short) 0, (short) 0, null, 0);
+						(byte) cmodule.conet_proto, (short) 0, (short) 0, null, 0, (short) 0);
 				Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.sw_datapath[i]);
 				if(myHT != null)
 					myHT.clear();
@@ -414,7 +452,7 @@ public class Handler {
 			// doFlowModStatic(sw,command,PRIORITY_REDIRECTION,(short)0,(short)VLAN_ID,(short)0x800,null,0,null,dest_ipaddr,ip_proto,tag,Arrays.asList(actions),(short)actions_len);
 			
 			cmodule.doFlowModStatic(sw, command, (short)(ConetModule.PRIORITY_REDIRECTION+50), (short) 0, (short) ConetModule.VLAN_ID, (short) 0x800,
-					null, IPv4.toIPv4Address(cmodule.clients), cmodule.bit_clients, null, dest_ipaddr, dest_cidr, ip_proto, tag, actions_vector, (short) actions_len);
+					null, IPv4.toIPv4Address(cmodule.clients), cmodule.bit_clients, null, dest_ipaddr, dest_cidr, ip_proto, tag, actions_vector, (short) actions_len, (short) cmodule.CONET_IDLE_TIMEOUT);
 			
 			// @@@@@@
 			// sw.flush();

@@ -28,14 +28,14 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
 					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(ctemp.cservers)),(int) 24, null,
-					client_ipaddr,-1, (byte) ctemp.conet_proto, (short) 0, (short) 0, port);
+					client_ipaddr,-1, (byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
 			
 			Pair<String,Integer> hserver = ctemp.getHomeServerRange(dp);
 			
 			// SEND TO ICN-CLIENT IF COMING FROM HOME SERVER
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC+50), (short) 0, vlan, (short) 0x800,
 					null, IPv4.toIPv4Address(hserver.first), hserver.second, client_macaddr, client_ipaddr, -1, (byte) ctemp.conet_proto,
-					(short) 0, (short) 0, port);
+					(short) 0, (short) 0, port, (short) 0);
 			
 			
 			// SEND TO BOTH ICN-CLIENT AND TO CACHE-SERVER IF COMING FROM FOREIGN SERVER
@@ -73,7 +73,7 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 					null, (int)IPv4.toIPv4Address(ctemp.servers), (int) 24,
 					client_macaddr, client_ipaddr,(int) -1, 
 					(byte) ctemp.conet_proto, (short) 0, (short) 0, actions_vector,
-					((short) actions_len));	
+					((short) actions_len), (short) 0);	
 			
 		} else { 
 			
@@ -84,7 +84,7 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
 					null, IPv4.toIPv4Address(ctemp.servers), (int) 24,
 					client_macaddr, client_ipaddr, (int) -1,
-					(byte) ctemp.conet_proto, (short) 0, (short) 0, port);
+					(byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
 		
 		}
 	

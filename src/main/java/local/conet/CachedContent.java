@@ -38,5 +38,10 @@ public class CachedContent {
 	public long getTag() {
 		return tag;
 	}
+	
+	@Override
+	public String toString(){
+		return "[ tag=" + tag + " , nid=" + nid + " , csn=" + csn + " ]";
+	}
 
 }

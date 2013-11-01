@@ -50,6 +50,10 @@ public class ConetModule implements IFloodlightModule {
 	/** Learning switch idle timeout [in seconds] */
 	// public short sw_idle_timeout=30;
 	public short sw_idle_timeout = 60;
+	
+	/** Conet idle timeout [in seconds]*/
+	
+	public short CONET_IDLE_TIMEOUT=0;
 
 	/** Log */
 	Log log = null;
@@ -435,6 +439,14 @@ public class ConetModule implements IFloodlightModule {
 		} else {
 			return new CachedContent[0];
 		}
+	}
+	
+	public void removeItemsFromMap(long id, long tAG) {
+		// TODO Auto-generated method stub
+		Hashtable <String , CachedContent> myHT = this.cached_contents.get(this.dpLong2String(id));
+		CachedContent c = myHT.remove(tAG);
+		if(this.debug_multi_cs)
+			this.println("RemoveItemsFromMap - Removed:" + c);
 	}
 
 
@@ -858,29 +870,29 @@ public class ConetModule implements IFloodlightModule {
 	/** Modifies (adds or deletes) a static flow entry. */
 	protected void doFlowModStatic(IOFSwitch sw, short command, short priority, short port_in, short vlan,
 			short eth_proto, byte[] src_macaddr, int src_ipaddr, int cidr_src, byte[] dest_macaddr, int dest_ipaddr, int cidr_dst, byte ip_proto,
-			short src_tport, short dest_tport, short port_out) { // if
+			short src_tport, short dest_tport, short port_out, short idle_timeout) { // if
 																	// (command==OFFlowMod.OFPFC_DELETE)
 																	// port_out=OFPort.OFPP_NONE.getValue();
 		List<OFAction> actions = Arrays.asList((OFAction) new OFActionOutput(port_out, (short) 0xffff));
 		int actions_len = OFActionOutput.MINIMUM_LENGTH;
 		doFlowModStatic(sw, command, priority, port_in, vlan, eth_proto, src_macaddr, src_ipaddr, cidr_src, dest_macaddr,
-				dest_ipaddr, cidr_dst, ip_proto, src_tport, dest_tport, actions, actions_len);
+				dest_ipaddr, cidr_dst, ip_proto, src_tport, dest_tport, actions, actions_len, idle_timeout);
 	}
 
 	/** Modifies (adds or deletes) a static flow entry. */
 	protected void doFlowModStatic(IOFSwitch sw, short command, short priority, short port_in, short vlan,
 			short eth_proto, byte[] src_macaddr, int src_ipaddr, int cidr_src, byte[] dest_macaddr, int dest_ipaddr, int cidr_dst, byte ip_proto,
-			long tag, List<OFAction> actions, int actions_len) {
+			long tag, List<OFAction> actions, int actions_len, short idle_timeout) {
 		long src_tport = (tag >> 16) & 0xFFFF;
 		long dest_tport = tag & 0xFFFF;
 		doFlowModStatic(sw, command, priority, port_in, vlan, eth_proto, src_macaddr, src_ipaddr, cidr_src, dest_macaddr,
-				dest_ipaddr, cidr_dst, ip_proto, (short) src_tport, (short) dest_tport, actions, actions_len);
+				dest_ipaddr, cidr_dst, ip_proto, (short) src_tport, (short) dest_tport, actions, actions_len, idle_timeout);
 	}
 
 	/** Modifies (adds or deletes) a static flow entry. */
 	protected void doFlowModStatic(IOFSwitch sw, short command, short priority, short port_in, short vlan,
 			short eth_proto, byte[] src_macaddr, int src_ipaddr,int cidr_src, byte[] dest_macaddr, int dest_ipaddr, int cidr_dst, byte ip_proto,
-			short src_tport, short dest_tport, List<OFAction> actions, int actions_len) {
+			short src_tport, short dest_tport, List<OFAction> actions, int actions_len, short idle_timeout) {
 		OFMatch match = new OFMatch();
 		// int wildcards=OFMatch.OFPFW_ALL;
 		int wildcards = 0xFFFFFFFF;
@@ -938,8 +950,8 @@ public class ConetModule implements IFloodlightModule {
 		flowMod.setBufferId(-1);
 		flowMod.setCookie(LEARNING_SWITCH_COOKIE);
 		flowMod.setCommand(command);
-		flowMod.setIdleTimeout((short) 0);
-		flowMod.setHardTimeout((short) 0);
+		flowMod.setIdleTimeout((short) idle_timeout);
+		flowMod.setHardTimeout((short) HARD_TIMEOUT_DEFAULT);
 		flowMod.setPriority(priority);
 		flowMod.setOutPort(OFPort.OFPP_NONE.getValue());
 		// flowMod.setFlags((short)(1<<0));
@@ -979,7 +991,7 @@ public class ConetModule implements IFloodlightModule {
 		println("DEBUG: DELETE ALL STATIC FLOW ENTRIES FOR SW 0x" + Long.toHexString(sw.getId()));
 		// doFlowModStatic(sw,OFFlowMod.OFPFC_DELETE,(short)0,(short)0,vlan,(short)0,null,(int)0,null,(int)0,(byte)0,(short)0,(short)0,(short)-1);
 		doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, vlan, (short) 0x800, null, (int) IPv4.toIPv4Address(net) , (int) bit_net,
-				null, (int) IPv4.toIPv4Address(net), (int) bit_net, (byte) conet_proto, (short) 0, (short) 0, null, 0);
+				null, (int) IPv4.toIPv4Address(net), (int) bit_net, (byte) conet_proto, (short) 0, (short) 0, null, 0, (short) 0);
 	}
 
 
@@ -1013,6 +1025,8 @@ public class ConetModule implements IFloodlightModule {
 		else
 			System.out.println(str);
 	}
+
+	
 
 	
 	
