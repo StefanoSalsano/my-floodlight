@@ -444,7 +444,12 @@ public class ConetModule implements IFloodlightModule {
 	public void removeItemsFromMap(long id, long tAG) {
 		// TODO Auto-generated method stub
 		Hashtable <String , CachedContent> myHT = this.cached_contents.get(this.dpLong2String(id));
-		CachedContent c = myHT.remove(tAG);
+		if(this.debug_multi_cs){
+			this.println("Id: " + id + " - " + this.dpLong2String(id));
+			this.println("Tag: " + tAG);
+			this.println("HashTable: " + myHT);
+		}
+		CachedContent c = myHT.remove(String.valueOf(tAG));
 		if(this.debug_multi_cs)
 			this.println("RemoveItemsFromMap - Removed:" + c);
 	}
@@ -954,7 +959,7 @@ public class ConetModule implements IFloodlightModule {
 		flowMod.setHardTimeout((short) HARD_TIMEOUT_DEFAULT);
 		flowMod.setPriority(priority);
 		flowMod.setOutPort(OFPort.OFPP_NONE.getValue());
-		// flowMod.setFlags((short)(1<<0));
+		flowMod.setFlags((command == OFFlowMod.OFPFC_DELETE) ? 0 : (short) (1 << 0));
 
 		// set actions
 		if (actions != null) {
@@ -1016,7 +1021,7 @@ public class ConetModule implements IFloodlightModule {
 		System.out.println("[" + Thread.currentThread().getName() + "]" + "***CONET*** " + str + "\n\n");
 	}
 	
-	private void print(String str, boolean first){
+	public void print(String str, boolean first){
 		if (log != null)
 			log.print(str);
 		// else
