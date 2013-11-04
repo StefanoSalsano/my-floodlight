@@ -350,7 +350,7 @@ public class Handler {
 		ConetModule cmodule = ConetModule.INSTANCE;
 		cmodule.println("DELETE ALL CONTENTS in local view (hastable)");
 		// reset cached contents
-		
+		cmodule.lock_contents.lock();
 		Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.dpLong2String(datapath));
 		if (myHT != null ) {
 			for (Enumeration i = myHT.keys(); i.hasMoreElements();) {
@@ -367,10 +367,11 @@ public class Handler {
 				redirectToCache(datapath, OFFlowMod.OFPFC_DELETE, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.servers)),
 						(int) cmodule.bit_servers, (byte) cmodule.conet_proto, tag);
 			}
-			//myHT.clear();
+			myHT.clear();
 //			cmodule.cached_contents.put(cmodule.dpLong2String(datapath), new Hashtable<String, CachedContent>());
 //			System.gc();
 		}
+		cmodule.lock_contents.unlock();
 	}
 	
 	/*
