@@ -3,6 +3,7 @@ package local.conet;
 import java.util.*;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.openflow.protocol.*;
 import org.openflow.protocol.action.*;
@@ -186,6 +187,7 @@ public class ConetModule implements IFloodlightModule {
 	 * and records which content are available in a given datapath
 	 */
 	Hashtable <String, Hashtable<String, CachedContent>> cached_contents = new Hashtable();
+	ReentrantLock lock_contents = new ReentrantLock();
 
 	/** Tag-based forwarding */
 	public boolean tag_based_forwarding = true;
@@ -443,6 +445,7 @@ public class ConetModule implements IFloodlightModule {
 	
 	public void removeItemsFromMap(long id, long tAG) {
 		// TODO Auto-generated method stub
+		this.lock_contents.lock();
 		Hashtable <String , CachedContent> myHT = this.cached_contents.get(this.dpLong2String(id));
 		if(this.debug_multi_cs){
 			this.println("Id: " + id + " - " + this.dpLong2String(id));
@@ -450,6 +453,7 @@ public class ConetModule implements IFloodlightModule {
 			this.println("HashTable: " + myHT);
 		}
 		CachedContent c = myHT.remove(String.valueOf(tAG));
+		this.lock_contents.unlock();
 		if(this.debug_multi_cs)
 			this.println("RemoveItemsFromMap - Removed:" + c);
 	}
