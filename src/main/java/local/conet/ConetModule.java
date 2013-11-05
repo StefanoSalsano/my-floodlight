@@ -450,7 +450,7 @@ public class ConetModule implements IFloodlightModule {
 		if(this.debug_multi_cs){
 			this.println("Id: " + id + " - " + this.dpLong2String(id));
 			this.println("Tag: " + tAG);
-			this.println("HashTable: " + myHT);
+			//this.println("HashTable: " + myHT);
 		}
 		CachedContent c = myHT.remove(String.valueOf(tAG));
 		this.lock_contents.unlock();
@@ -589,7 +589,7 @@ public class ConetModule implements IFloodlightModule {
 		println("startUp(): add Conet REST API");
 		println("");
 		IRestApiService restApi = context.getServiceImpl(IRestApiService.class);
-		restApi.addRestletRoutable(new ConetCoreWebRoutable());
+		//restApi.addRestletRoutable(new ConetCoreWebRoutable());
 		restApi.addRestletRoutable(new ConetWebRoutable());
 		
 		//this.testInsertSomeCachedContents();

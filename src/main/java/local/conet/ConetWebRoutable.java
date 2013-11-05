@@ -36,11 +36,11 @@ public class ConetWebRoutable implements RestletRoutable
       //router.attach("/switch/{switchId}/{statType}/json", ConetWebResource.class);
       
       // TAG-BASED FORWARDING:
-      router.attach("/switch/all/tagbasedfw/{tbfCommand}", ConetWebResource.class);
+      router.attach("/switch/{switchId}/tagbasedfw/{tbfCommand}", ConetWebResource.class);
       // tbfCommand=start|stop|info
 
       // CACHE-SERVER statistics:
-      router.attach("/cache-server/{switchId}/{statType}/json", ConetWebResource.class);
+      router.attach("/cache-server/{switchId}/{tbfCommand}/json", ConetWebResource.class);
       // switchId=<cache-mac-addr>
       // statType=cacheditems|cachedcontents
 

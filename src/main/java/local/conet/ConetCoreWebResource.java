@@ -30,6 +30,8 @@ public class ConetCoreWebResource extends ServerResource
 
     @Get("json")
     public Map<String, Object> retrieve() {
+    	
+    	System.out.println(("Call ConetCoreWeb"));
     	HashMap<String,Object> result=new HashMap<String,Object>();
         String switch_id=(String)getRequestAttributes().get("switchId");
         String stat_type=(String)getRequestAttributes().get("statType");
