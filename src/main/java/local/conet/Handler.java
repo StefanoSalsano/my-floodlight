@@ -57,6 +57,7 @@ public class Handler {
 		Long sourceMac = Ethernet.toLong(match.getDataLayerSource());
 		Long destMac = Ethernet.toLong(match.getDataLayerDestination());
 		Short vlan = match.getDataLayerVirtualLan();
+		short eth_proto = match.getDataLayerType();
 		if ((destMac & 0xfffffffffff0L) == 0x0180c2000000L) {
 			if (cmodule.debug_multi_cs)
 			cmodule.println("LearningSwitch: processPacketInMessage(): ignoring packet addressed to 802.1D/Q reserved addr: switch "
@@ -95,7 +96,7 @@ public class Handler {
 			
 			if(cmodule.debug_multi_cs)
 				cmodule.println("Packet out to all ports - Flood !!!");
-			cmodule.doPacketOutForPacketIn(sw, pi, OFPort.OFPP_FLOOD.getValue());
+			cmodule.doPacketOutForPacketIn(sw, pi, OFPort.OFPP_FLOOD.getValue(), eth_proto);
 		} else if (outPort == match.getInputPort()) {
 			if(cmodule.debug_multi_cs){
 				cmodule.println("DEBUG: port_in == port_out: packet ignored");
@@ -114,7 +115,7 @@ public class Handler {
 			// forever.
 			
 			if(cmodule.debug_multi_cs)
-			cmodule.println("DEBUG: packet out to port " + outPort + " (and flow add)");
+				cmodule.println("DEBUG: packet out to port " + outPort + " (and flow add)");
 			cmodule.doFlowAddForPacketIn(sw, pi, outPort);
 		}
 		return Command.CONTINUE;

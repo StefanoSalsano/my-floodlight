@@ -87,8 +87,8 @@ public class HandlerMultiCS extends Handler {
 			if(cmodule.debug_multi_cs){
 				cmodule.println("Pack: "+((ip_packet!=null)? "is" : "is NOT")+" an IP packet");
 				if (ip_packet!=null){
-					cmodule.println("IP Packet: "+BinTools.asHex(pkt_data,14,pkt_data.length-14));
-					cmodule.println("IP Options: "+BinTools.asHex(ip_packet.getOptionsBuffer(),ip_packet.getOptionsOffset(),ip_packet.getOptionsLength()));
+					//cmodule.println("IP Packet: "+BinTools.asHex(pkt_data,14,pkt_data.length-14));
+					//cmodule.println("IP Options: "+BinTools.asHex(ip_packet.getOptionsBuffer(),ip_packet.getOptionsOffset(),ip_packet.getOptionsLength()));
 				}
 			}
 

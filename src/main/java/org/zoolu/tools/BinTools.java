@@ -40,7 +40,7 @@ public class BinTools
    }  
    
    /** Transforms <i>len</i> bytes (from <i>offset</i>) of an array into a hex string. */
-   public static String asHex(byte[] buf, int offset, int len)
+   public static String asHex(byte[] buf, int offset, int len) throws ArrayIndexOutOfBoundsException
    {  StringBuffer sb=new StringBuffer();
       int end=offset+len;
       for (int i=offset; i<end; i++)

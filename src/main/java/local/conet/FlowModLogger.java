@@ -47,7 +47,8 @@ public class FlowModLogger implements IOFMessageListener{
 	public Command receive(
 			IOFSwitch sw, OFMessage msg, FloodlightContext cntx) {
 		// Auto-generated method stub
-		this.println("Receive FlowMod Notification -  " + sw + " - " + msg);
+		if(ConetModule.INSTANCE.debug_multi_cs)
+			this.println("Receive FlowMod Notification -  " + sw + " - " + msg);
 		return Command.CONTINUE;
 	}
 	

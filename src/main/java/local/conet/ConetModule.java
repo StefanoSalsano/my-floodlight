@@ -15,6 +15,7 @@ import net.floodlightcontroller.core.types.MacVlanPair;
 import net.floodlightcontroller.packet.IPv4;
 
 
+import org.zoolu.net.IpPacket;
 import org.zoolu.net.message.*;
 import org.zoolu.tools.*;
 
@@ -757,18 +758,50 @@ public class ConetModule implements IFloodlightModule {
 	// *******************************
 
 	/** Sends out a packet (received as PacketIn) through the given output port. */
-	protected void doPacketOutForPacketIn(IOFSwitch sw, OFPacketIn pi, short port_out) {
-		doPacketOut(sw, pi.getInPort(), pi.getBufferId(), pi.getPacketData(), port_out, null);
+	protected void doPacketOutForPacketIn(IOFSwitch sw, OFPacketIn pi, short port_out, short eth_proto) {
+		doPacketOut(sw, pi.getInPort(), pi.getBufferId(), pi.getPacketData(), port_out, eth_proto, null);
 	}
 
 	/** Sends out a packet through the given output port. */
-	protected void doPacketOut(IOFSwitch sw, short port_in, int buffer_id, byte[] pkt_data, short port_out,
+	protected void doPacketOut(IOFSwitch sw, short port_in, int buffer_id, byte[] pkt_data, short port_out, short eth_proto,
 			FloodlightContext cntx) {
 		OFPacketOut po = (OFPacketOut) floodlightProvider.getOFMessageFactory().getMessage(OFType.PACKET_OUT);
 		po.setInPort(port_in);
 		po.setBufferId(buffer_id);
 		int po_len = OFPacketOut.MINIMUM_LENGTH;
 
+		this.println("#########################");
+		this.println("DOPACKETOUT");
+		this.println("#########################");
+		
+		this.println("P_IN: " + port_in);
+		this.println("Buff_ID: " + buffer_id);
+		IpPacket ip_packet = (eth_proto == 0x800) ? IpPacket.parseRawPacket(pkt_data, 14) : null;
+		this.println("Pack: "+((ip_packet!=null)? "is" : "is NOT")+" an IP packet");
+		if (ip_packet!=null){
+			try{
+				this.println("IP Packet: "+BinTools.asHex(pkt_data,14,pkt_data.length-14) + "\n\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+				this.println("IP_SRC: " + ip_packet.getSourceAddress());
+				this.println("IP_DST: " + ip_packet.getDestAddress());
+				this.println("IP Options: "+BinTools.asHex(ip_packet.getOptionsBuffer(),ip_packet.getOptionsOffset(),ip_packet.getOptionsLength()));
+			}
+			catch(ArrayIndexOutOfBoundsException a){
+				a.printStackTrace();
+				this.println("ERROR PRINT IP DATA");
+				this.println("P_DATA LEN:" + pkt_data.length);
+				this.println("IP LEN: " + ip_packet.getDataLength());
+				this.println("OPTION OFFSET: " + ip_packet.getOptionsOffset());
+				this.println("OPTION LENGTH: " + ip_packet.getOptionsLength());
+				
+			}
+		}
+		this.println("P_OUT: " + port_out);
+		this.println("ETH_PROTO: " + Integer.toHexString(U16.f(eth_proto)));
+		
+		
+		
+		
+		
 		// set actions
 		// OFActionOutput action=new OFActionOutput((short)port_out,(short)0);
 		OFActionOutput action = new OFActionOutput().setPort((short) port_out);
@@ -781,6 +814,7 @@ public class ConetModule implements IFloodlightModule {
 
 		// set data if it is included in the PacketIn message
 		if (buffer_id == OFPacketOut.BUFFER_ID_NONE) {
+			this.println("SET PACKET DATA");
 			po.setPacketData(pkt_data);
 			po_len += pkt_data.length;
 		}
@@ -788,10 +822,11 @@ public class ConetModule implements IFloodlightModule {
 
 		// send PacketOut message
 		try {
-			if(this.debug_multi_cs){
+			//if(this.debug_multi_cs){
 				this.println("Send PacketOutMessage - No Flow MOD");
 				this.println("POUT Message:" + po);
-			}
+			//}
+				this.println("############################");
 			sw.write(po, cntx);
 		} catch (IOException e) {
 			printException(e);
