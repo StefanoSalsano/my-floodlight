@@ -394,19 +394,25 @@ public class ConetModule implements IFloodlightModule {
 	
 	public void removeItemsFromMap(long id, long tAG) {
 		// TODO Auto-generated method stub
-		this.println("removeItemsFromMap Prendo Lock");
-		this.lock_contents.lock();
-		Hashtable <String , CachedContent> myHT = this.cached_contents.get(this.dpLong2String(id));
-		if(this.debug_multi_cs){
-			this.println("Id: " + id + " - " + this.dpLong2String(id));
-			this.println("Tag: " + tAG);
-			//this.println("HashTable: " + myHT);
+		try{
+			this.println("removeItemsFromMap Prendo Lock");
+			this.lock_contents.lock();
+			Hashtable <String , CachedContent> myHT = this.cached_contents.get(this.dpLong2String(id));
+			if(this.debug_multi_cs){
+				this.println("Id: " + id + " - " + this.dpLong2String(id));
+				this.println("Tag: " + tAG);
+				//this.println("HashTable: " + myHT);
+			}
+			CachedContent c = myHT.remove(String.valueOf(tAG));
+			this.lock_contents.unlock();
+			this.println("removeItemsFromMap Rilascio Lock");
+			if(this.debug_multi_cs)
+				this.println("RemoveItemsFromMap - Removed:" + c);
+			}
+		finally{
+			this.lock_contents.unlock();
+			this.println("removeItemsFromMap finally Rilascio Lock");
 		}
-		CachedContent c = myHT.remove(String.valueOf(tAG));
-		this.lock_contents.unlock();
-		this.println("removeItemsFromMap Rilascio Lock");
-		if(this.debug_multi_cs)
-			this.println("RemoveItemsFromMap - Removed:" + c);
 	}
 
 

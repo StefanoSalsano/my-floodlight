@@ -240,44 +240,50 @@ public class HandlerMultiCS extends Handler {
 				dest_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(json_message.get("DestIpAddr").toString()));
 			
 			short command = -1;
-			cmodule.println("ProcessCacheServerMessage Prendo Lock");
-			cmodule.lock_contents.lock();
-			Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(dataPathStr);
-			if (myHT != null ) {
-				if (type.equalsIgnoreCase("stored")) {
-					myHT.put(content_tag, content);
-					command = OFFlowMod.OFPFC_ADD;
-				} else if (type.equalsIgnoreCase("refreshed")) {
-					if (!myHT.containsKey(content_tag))
+			try{
+				cmodule.println("ProcessCacheServerMessage Prendo Lock");
+				cmodule.lock_contents.lock();
+				Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(dataPathStr);
+				if (myHT != null ) {
+					if (type.equalsIgnoreCase("stored")) {
 						myHT.put(content_tag, content);
-					command = OFFlowMod.OFPFC_ADD;
-				} else if (type.equalsIgnoreCase("deleted")) {
-					myHT.remove(content_tag);
-					command = OFFlowMod.OFPFC_DELETE;
-				}
-				
-				//the logic in the first demo is:
-				//if I receive a stored or refreshed message for a given tag, I redirect 
-				//to cache all interests towards that tag (whatever the IP destination address of the server)
-				//this means adding a row for each server IP address we know
-				// set flowtable entry for redirecting packets with the given
-				// tag and with the given destination
-				
-				if (dest_ipaddr != 0)
-					redirectToCache(datapath, command, (int) dest_ipaddr,(int) -1,(byte) cmodule.conet_proto, tag);
-				else{
+						command = OFFlowMod.OFPFC_ADD;
+					} else if (type.equalsIgnoreCase("refreshed")) {
+						if (!myHT.containsKey(content_tag))
+							myHT.put(content_tag, content);
+						command = OFFlowMod.OFPFC_ADD;
+					} else if (type.equalsIgnoreCase("deleted")) {
+						myHT.remove(content_tag);
+						command = OFFlowMod.OFPFC_DELETE;
+					}
 					
+					//the logic in the first demo is:
+					//if I receive a stored or refreshed message for a given tag, I redirect 
+					//to cache all interests towards that tag (whatever the IP destination address of the server)
+					//this means adding a row for each server IP address we know
 					// set flowtable entry for redirecting packets with the given
-					// tag and with any conet server address as destination
-					// NOTE: this should be changed when the cache server will send
-					// also the destination (together with tag info) within
-					// cache-to-controller messages
-					super.redirectToCache(datapath, command,(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.servers)),
-							(int) 24, (byte) cmodule.conet_proto, tag);
+					// tag and with the given destination
+					
+					if (dest_ipaddr != 0)
+						redirectToCache(datapath, command, (int) dest_ipaddr,(int) -1,(byte) cmodule.conet_proto, tag);
+					else{
+						
+						// set flowtable entry for redirecting packets with the given
+						// tag and with any conet server address as destination
+						// NOTE: this should be changed when the cache server will send
+						// also the destination (together with tag info) within
+						// cache-to-controller messages
+						super.redirectToCache(datapath, command,(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.servers)),
+								(int) 24, (byte) cmodule.conet_proto, tag);
+					}
 				}
+				cmodule.lock_contents.unlock();
+				cmodule.println("ProcessCacheServerMessage Rilascio Lock");
 			}
-			cmodule.lock_contents.unlock();
-			cmodule.println("ProcessCacheServerMessage Rilascio Lock");
+			finally{
+				cmodule.lock_contents.unlock();
+				cmodule.println("ProcessCacheServerMessage Finally Rilascio Lock");
+			}
 		}
 
 	}

@@ -353,31 +353,37 @@ public class Handler {
 		ConetModule cmodule = ConetModule.INSTANCE;
 		cmodule.println("DELETE ALL CONTENTS in local view (hastable)");
 		// reset cached contents
-		cmodule.println("FlushAllContents Prendo Lock");
-		cmodule.lock_contents.lock();
-		Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.dpLong2String(datapath));
-		if (myHT != null ) {
-			for (Enumeration i = myHT.keys(); i.hasMoreElements();) {
-				String content_tag = (String) i.nextElement();
-				long tag = Long.parseLong(content_tag);
-				
-				// remove flowtable entries that match packets with the given tag
-				// and with any icn server as destination
-				// NOTE: this should be changed when the cache server will send also
-				// the destination (together with tag info) within
-				// cache-to-controller messages
-				
-				cmodule.println("TAG TO BE REMOVED : "+ content_tag);
-				redirectToCache(datapath, OFFlowMod.OFPFC_DELETE, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.servers)),
-						(int) cmodule.bit_servers, (byte) cmodule.conet_proto, tag);
+		try{
+			cmodule.println("FlushAllContents Prendo Lock");
+			cmodule.lock_contents.lock();
+			Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.dpLong2String(datapath));
+			if (myHT != null ) {
+				for (Enumeration i = myHT.keys(); i.hasMoreElements();) {
+					String content_tag = (String) i.nextElement();
+					long tag = Long.parseLong(content_tag);
+					
+					// remove flowtable entries that match packets with the given tag
+					// and with any icn server as destination
+					// NOTE: this should be changed when the cache server will send also
+					// the destination (together with tag info) within
+					// cache-to-controller messages
+					
+					cmodule.println("TAG TO BE REMOVED : "+ content_tag);
+					redirectToCache(datapath, OFFlowMod.OFPFC_DELETE, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.servers)),
+							(int) cmodule.bit_servers, (byte) cmodule.conet_proto, tag);
+				}
+				myHT.clear();
+	//			cmodule.cached_contents.put(cmodule.dpLong2String(datapath), new Hashtable<String, CachedContent>());
+	//			System.gc();
 			}
-			myHT.clear();
-//			cmodule.cached_contents.put(cmodule.dpLong2String(datapath), new Hashtable<String, CachedContent>());
-//			System.gc();
+			
+			cmodule.lock_contents.unlock();
+			cmodule.println("FlushAllContents Rilascio Lock");
 		}
-		
-		cmodule.lock_contents.unlock();
-		cmodule.println("FlushAllContents Rilascio Lock");
+		finally{
+			cmodule.lock_contents.unlock();
+			cmodule.println("FlushAllContents Finally Rilascio Lock");
+		}
 	}
 	
 	/*
@@ -398,12 +404,18 @@ public class Handler {
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net,
 						(byte) cmodule.conet_proto, (short) 0, (short) 0, null, 0, (short) 0);
 				cmodule.println("Delete All Conet Rule Prendo Lock");
-				cmodule.lock_contents.lock();
-				Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.sw_datapath[i]);
-				if(myHT != null)
-					myHT.clear();
-				cmodule.lock_contents.unlock();
-				cmodule.println("Delete All Conet Rule Rilascio Lock");
+				try{
+					cmodule.lock_contents.lock();
+					Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.sw_datapath[i]);
+					if(myHT != null)
+						myHT.clear();
+					cmodule.lock_contents.unlock();
+					cmodule.println("Delete All Conet Rule Rilascio Lock");
+				}
+				finally{
+					cmodule.lock_contents.unlock();
+					cmodule.println("Delete All Conet Rule Finally Rilascio Lock");
+				}
 			}
 			else{
 				cmodule.println("Non Trovato: " + cmodule.sw_datapath[i]);
