@@ -410,8 +410,10 @@ public class ConetModule implements IFloodlightModule {
 				this.println("RemoveItemsFromMap - Removed:" + c);
 			}
 		finally{
-			this.lock_contents.unlock();
-			this.println("removeItemsFromMap finally Rilascio Lock");
+			if(this.lock_contents.isHeldByCurrentThread()){
+				this.lock_contents.unlock();
+				this.println("removeItemsFromMap finally Rilascio Lock");
+			}
 		}
 	}
 

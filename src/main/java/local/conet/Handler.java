@@ -381,8 +381,10 @@ public class Handler {
 			cmodule.println("FlushAllContents Rilascio Lock");
 		}
 		finally{
-			cmodule.lock_contents.unlock();
-			cmodule.println("FlushAllContents Finally Rilascio Lock");
+			if(cmodule.lock_contents.isHeldByCurrentThread()){
+				cmodule.lock_contents.unlock();
+				cmodule.println("FlushAllContents Finally Rilascio Lock");
+			}
 		}
 	}
 	
@@ -413,8 +415,10 @@ public class Handler {
 					cmodule.println("Delete All Conet Rule Rilascio Lock");
 				}
 				finally{
-					cmodule.lock_contents.unlock();
-					cmodule.println("Delete All Conet Rule Finally Rilascio Lock");
+					if(cmodule.lock_contents.isHeldByCurrentThread()){
+						cmodule.lock_contents.unlock();
+						cmodule.println("Delete All Conet Rule Finally Rilascio Lock");
+					}
 				}
 			}
 			else{

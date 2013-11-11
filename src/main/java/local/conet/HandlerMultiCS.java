@@ -281,8 +281,10 @@ public class HandlerMultiCS extends Handler {
 				cmodule.println("ProcessCacheServerMessage Rilascio Lock");
 			}
 			finally{
-				cmodule.lock_contents.unlock();
-				cmodule.println("ProcessCacheServerMessage Finally Rilascio Lock");
+				if(cmodule.lock_contents.isHeldByCurrentThread()){
+					cmodule.lock_contents.unlock();
+					cmodule.println("ProcessCacheServerMessage Finally Rilascio Lock");
+				}
 			}
 		}
 
