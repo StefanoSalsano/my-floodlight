@@ -9,6 +9,7 @@ import org.openflow.protocol.OFType;
 import org.zoolu.net.message.Message;
 import org.zoolu.net.message.MsgTransport;
 import org.zoolu.net.message.MsgTransportListener;
+import org.zoolu.tools.BinAddrTools;
 
 import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IOFMessageListener;
@@ -41,11 +42,18 @@ public class ConetListener implements IOFMessageListener, MsgTransportListener{
 			conet.println("MSG: " + msg);
 		try{
 			Long dp = Long.valueOf(sw.getId());
-			if (!conet.seen_switches.containsKey(dp)) { 
+			if (!conet.seen_switches.containsKey(dp)) {
 				if(conet.debug_multi_cs)
 					conet.println("LEARN NEW SW: " + sw.getId());
 				conet.seen_switches.put(dp, sw);
 				conet.doFlowModDeleteAll(sw, (short) ConetModule.VLAN_ID);
+				if(conet.static_ghent){
+					long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
+					if(ghent_id == sw.getId()){
+						conet.initGhent(sw);
+					}
+				}
+					
 			}
 		}
 		catch(Exception e){

@@ -96,7 +96,7 @@ public class Handler {
 			
 			if(cmodule.debug_multi_cs)
 				cmodule.println("Packet out to all ports - Flood !!!");
-			cmodule.doPacketOutForPacketIn(sw, pi, OFPort.OFPP_FLOOD.getValue(), eth_proto);
+			cmodule.doPacketOutForPacketIn(sw, pi, OFPort.OFPP_FLOOD.getValue());
 		} else if (outPort == match.getInputPort()) {
 			if(cmodule.debug_multi_cs){
 				cmodule.println("DEBUG: port_in == port_out: packet ignored");
@@ -116,6 +116,8 @@ public class Handler {
 			
 			if(cmodule.debug_multi_cs)
 				cmodule.println("DEBUG: packet out to port " + outPort + " (and flow add)");
+			if(cmodule.padding)
+				cmodule.doPacketOutForPacketIn(sw, pi, outPort);
 			cmodule.doFlowAddForPacketIn(sw, pi, outPort);
 		}
 		return Command.CONTINUE;
