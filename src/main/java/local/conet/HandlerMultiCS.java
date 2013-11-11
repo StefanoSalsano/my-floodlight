@@ -240,6 +240,7 @@ public class HandlerMultiCS extends Handler {
 				dest_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(json_message.get("DestIpAddr").toString()));
 			
 			short command = -1;
+			cmodule.println("ProcessCacheServerMessage Prendo Lock");
 			cmodule.lock_contents.lock();
 			Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(dataPathStr);
 			if (myHT != null ) {
@@ -276,6 +277,7 @@ public class HandlerMultiCS extends Handler {
 				}
 			}
 			cmodule.lock_contents.unlock();
+			cmodule.println("ProcessCacheServerMessage Rilascio Lock");
 		}
 
 	}

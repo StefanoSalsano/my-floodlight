@@ -394,6 +394,7 @@ public class ConetModule implements IFloodlightModule {
 	
 	public void removeItemsFromMap(long id, long tAG) {
 		// TODO Auto-generated method stub
+		this.println("removeItemsFromMap Prendo Lock");
 		this.lock_contents.lock();
 		Hashtable <String , CachedContent> myHT = this.cached_contents.get(this.dpLong2String(id));
 		if(this.debug_multi_cs){
@@ -403,6 +404,7 @@ public class ConetModule implements IFloodlightModule {
 		}
 		CachedContent c = myHT.remove(String.valueOf(tAG));
 		this.lock_contents.unlock();
+		this.println("removeItemsFromMap Rilascio Lock");
 		if(this.debug_multi_cs)
 			this.println("RemoveItemsFromMap - Removed:" + c);
 	}
