@@ -66,8 +66,8 @@ public class Handler {
 		}
 		
 		if(cmodule.debug_multi_cs){
-			cmodule.println("Receive Packet From Port: " + pi.getInPort() + " - With VID: " + vlan
-					+ " - SMAC: " + Long.toString(sourceMac, 16) + " - DMAC: " + Long.toString(destMac, 16));
+		cmodule.println("Receive Packet From Port: " + pi.getInPort() + " - With VID: " + vlan
+				+ " - SMAC: " + Long.toString(sourceMac, 16) + " - DMAC: " + Long.toString(destMac, 16));
 		}
 
 //		boolean verbose = CONET_VERBOSE
@@ -82,6 +82,7 @@ public class Handler {
 
 		// learn from source mac/vlan
 		cmodule.learnFromSourceMac(sw, pi.getInPort(), sourceMac, vlan);
+		long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
 
 		// output flow-mod and/or packet
 		Short outPort = cmodule.getFromPortMap(sw, destMac, vlan);
@@ -96,6 +97,10 @@ public class Handler {
 			
 			if(cmodule.debug_multi_cs)
 				cmodule.println("Packet out to all ports - Flood !!!");
+			if(cmodule.arp && eth_proto == 0x800 && sw.getId() == ghent_id){
+				cmodule.println("$$$$ - GHENT - doArpOutForPacketIn - $$$$");
+				cmodule.doArpOutForPacetIn(sw, pi, OFPort.OFPP_FLOOD.getValue());
+			}
 			cmodule.doPacketOutForPacketIn(sw, pi, OFPort.OFPP_FLOOD.getValue());
 		} else if (outPort == match.getInputPort()) {
 			if(cmodule.debug_multi_cs){
@@ -116,6 +121,10 @@ public class Handler {
 			
 			if(cmodule.debug_multi_cs)
 				cmodule.println("DEBUG: packet out to port " + outPort + " (and flow add)");
+			if(cmodule.arp && eth_proto == 0x800 && sw.getId() == ghent_id){
+				cmodule.println("$$$$ - GHENT - doArpOutForPacketIn - $$$$");
+				cmodule.doArpOutForPacetIn(sw, pi, OFPort.OFPP_FLOOD.getValue());
+			}
 			if(cmodule.padding)
 				cmodule.doPacketOutForPacketIn(sw, pi, outPort);
 			cmodule.doFlowAddForPacketIn(sw, pi, outPort);
@@ -191,11 +200,11 @@ public class Handler {
 		long TAG = (((long) TP_SRC) << 16) + ((long) TP_DST);
 		
 		if(cmodule.debug_multi_cs)
-			cmodule.println("FLOW REMOVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),vlan=" + VLAN
-					+ ", eth_proto=0x" + Integer.toHexString(U16.f(ETH_PROTO))
-					+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_SRC)) + "/" + SRC_MASK_LEN
-					+ ", ip_dst=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_DST)) + "/" + DST_MASK_LEN
-					+ ", ip_proto=0x" + Integer.toHexString(IP_PROTO) + ", tag=0x" + Long.toHexString(TAG));
+		cmodule.println("FLOW REMOVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),vlan=" + VLAN
+				+ ", eth_proto=0x" + Integer.toHexString(U16.f(ETH_PROTO))
+				+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_SRC)) + "/" + SRC_MASK_LEN
+				+ ", ip_dst=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_DST)) + "/" + DST_MASK_LEN
+				+ ", ip_proto=0x" + Integer.toHexString(IP_PROTO) + ", tag=0x" + Long.toHexString(TAG));
 		if(this.isTaggedRule(VLAN, ETH_PROTO, IP_PROTO, IP_SRC, SRC_MASK_LEN, TAG)){
 			//The flow removed is Conet
 			if(cmodule.debug_multi_cs)
@@ -212,7 +221,9 @@ public class Handler {
 		// until it sends another packet, allowing us to re-learn its port. Meanwhile
 		// we remove it from the macVlanToPortMap to revert to flooding packets to this
 		// device.
-		cmodule.removeFromPortMap(sw, Ethernet.toLong(match.getDataLayerSource()), match.getDataLayerVirtualLan());
+		
+		
+		////cmodule.removeFromPortMap(sw, Ethernet.toLong(match.getDataLayerSource()), match.getDataLayerVirtualLan());
 
 		// Also, if packets keep coming from another device (e.g. from ping),
 		// the corresponding reverse flow entry will never expire on its own
@@ -351,10 +362,12 @@ public class Handler {
 	 */
 	public void flushAllContents(long datapath) {
 		ConetModule cmodule = ConetModule.INSTANCE;
-		cmodule.println("DELETE ALL CONTENTS in local view (hastable)");
+		if(cmodule.debug_multi_csf)
+			cmodule.println("DELETE ALL CONTENTS in local view (hastable)");
 		// reset cached contents
 		try{
-			cmodule.println("FlushAllContents Prendo Lock");
+			if(cmodule.debug_multi_csf)
+				cmodule.println("FlushAllContents Prendo Lock");
 			cmodule.lock_contents.lock();
 			Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.dpLong2String(datapath));
 			if (myHT != null ) {
@@ -367,8 +380,8 @@ public class Handler {
 					// NOTE: this should be changed when the cache server will send also
 					// the destination (together with tag info) within
 					// cache-to-controller messages
-					
-					cmodule.println("TAG TO BE REMOVED : "+ content_tag);
+					if(cmodule.debug_multi_csf)
+						cmodule.println("TAG TO BE REMOVED : "+ content_tag);
 					redirectToCache(datapath, OFFlowMod.OFPFC_DELETE, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.servers)),
 							(int) cmodule.bit_servers, (byte) cmodule.conet_proto, tag);
 				}
@@ -378,12 +391,14 @@ public class Handler {
 			}
 			
 			cmodule.lock_contents.unlock();
-			cmodule.println("FlushAllContents Rilascio Lock");
+			if(cmodule.debug_multi_csf)
+				cmodule.println("FlushAllContents Rilascio Lock");
 		}
 		finally{
 			if(cmodule.lock_contents.isHeldByCurrentThread()){
 				cmodule.lock_contents.unlock();
-				cmodule.println("FlushAllContents Finally Rilascio Lock");
+				if(cmodule.debug_multi_csf)
+					cmodule.println("FlushAllContents Finally Rilascio Lock");
 			}
 		}
 	}
@@ -399,30 +414,35 @@ public class Handler {
 		int i = 0;
 		while(i < cmodule.sw_datapath_long.length){
 			if(switches.containsKey(cmodule.sw_datapath_long[i])){
-				cmodule.println("Trovato: " + cmodule.sw_datapath[i] + " - DELETE");
+				if(cmodule.debug_multi_csf)
+					cmodule.println("Trovato: " + cmodule.sw_datapath[i] + " - DELETE");
 				IOFSwitch sw = switches.get(cmodule.sw_datapath_long[i]);
 				cmodule.doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short) ConetModule.VLAN_ID, (short) 0x800, 
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net, 
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net,
 						(byte) cmodule.conet_proto, (short) 0, (short) 0, null, 0, (short) 0);
-				cmodule.println("Delete All Conet Rule Prendo Lock");
+				if(cmodule.debug_multi_csf)
+					cmodule.println("Delete All Conet Rule Prendo Lock");
 				try{
 					cmodule.lock_contents.lock();
 					Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.sw_datapath[i]);
 					if(myHT != null)
 						myHT.clear();
 					cmodule.lock_contents.unlock();
-					cmodule.println("Delete All Conet Rule Rilascio Lock");
+					if(cmodule.debug_multi_csf)
+						cmodule.println("Delete All Conet Rule Rilascio Lock");
 				}
 				finally{
 					if(cmodule.lock_contents.isHeldByCurrentThread()){
 						cmodule.lock_contents.unlock();
-						cmodule.println("Delete All Conet Rule Finally Rilascio Lock");
+						if(cmodule.debug_multi_csf)
+							cmodule.println("Delete All Conet Rule Finally Rilascio Lock");
 					}
 				}
 			}
 			else{
-				cmodule.println("Non Trovato: " + cmodule.sw_datapath[i]);
+				if(cmodule.debug_multi_csf)
+					cmodule.println("Non Trovato: " + cmodule.sw_datapath[i]);
 			}
 			i++;
 		}
@@ -440,16 +460,19 @@ public class Handler {
 		ConetModule cmodule = ConetModule.INSTANCE;
 		Vector<OFAction> actions_vector = new Vector<OFAction>();
 		int actions_len = 0;
-		cmodule.println("CALL REDIRECT TO CACHE");
+		if(cmodule.debug_multi_csf)
+			cmodule.println("CALL REDIRECT TO CACHE");
 		if (cmodule.change_destination || cmodule.change_mac_destination) {
-			cmodule.println("CAMBIO MAC DST: " + cmodule.getCacheMacAddress(datapath));
+			if(cmodule.debug_multi_csf)
+				cmodule.println("CAMBIO MAC DST: " + cmodule.getCacheMacAddress(datapath));
 			OFActionDataLayerDestination action_dl_dest = new OFActionDataLayerDestination();
 			action_dl_dest.setDataLayerAddress(BinTools.hexStringToBytes(cmodule.getCacheMacAddress(datapath)));
 			actions_vector.addElement(action_dl_dest);
 			actions_len += OFActionDataLayerDestination.MINIMUM_LENGTH;
 		}
 		if (cmodule.change_destination) {
-			cmodule.println("CAMBIO NET DST: " + cmodule.getCacheIpAddress(tag));
+			if(cmodule.debug_multi_csf)
+				cmodule.println("CAMBIO NET DST: " + cmodule.getCacheIpAddress(tag));
 			OFActionNetworkLayerDestination action_nw_dest = new OFActionNetworkLayerDestination();
 			action_nw_dest.setNetworkAddress((int) BinTools.fourBytesToInt(BinAddrTools
 					.ipv4addrToBytes(cmodule.getCacheIpAddress(datapath))));
@@ -457,7 +480,8 @@ public class Handler {
 			actions_len += OFActionNetworkLayerDestination.MINIMUM_LENGTH;
 		}
 		if (cmodule.change_mac_source) {
-			cmodule.println("CAMBIO MAC SRC: " + cmodule.getSwVirtualMacAddr(datapath));
+			if(cmodule.debug_multi_csf)
+				cmodule.println("CAMBIO MAC SRC: " + cmodule.getSwVirtualMacAddr(datapath));
 			OFActionDataLayerSource action_dl_src = new OFActionDataLayerSource();
 			action_dl_src.setDataLayerAddress(BinTools.hexStringToBytes(cmodule.getSwVirtualMacAddr(datapath)));
 			actions_vector.addElement(action_dl_src);

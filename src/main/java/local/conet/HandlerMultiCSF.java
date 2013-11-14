@@ -17,13 +17,14 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 	@Override
 	protected void forwardToClient(long dp, short command, short vlan, byte[] client_macaddr, int client_ipaddr, short port) {
 		ConetModule ctemp = ConetModule.INSTANCE;
-		if(ctemp.debug_multi_cs)
+		if(ctemp.debug_multi_csf)
 			ctemp.println("HandlerMultiCSF FORWARD TO CLIENT");	
 		if (!ctemp.debug_disable_redirection) {
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER,
 			// SEND TO BOTH ICN-CLIENT AND TO CACHE-SERVER IF COMING FROM FOREIGN SERVER
 			// SEND TO ICN_CLIENT IF COMING FROM HOME SERVER
-			ctemp.println("HandlerMultiCSF SEND TO BOTH ICN-CLIENT AND CACHE SERVER");
+			if(ctemp.debug_multi_cs)
+				ctemp.println("HandlerMultiCSF SEND TO BOTH ICN-CLIENT AND CACHE SERVER");
 			
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
@@ -78,8 +79,8 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 		} else { 
 			
 			// SEND ONLY TO ICN-CLIENT
-			
-			ctemp.println("HandlerMultiCS SEND ONLY TO ICN-CLIENT");
+			if(ctemp.debug_multi_csf)
+				ctemp.println("HandlerMultiCS SEND ONLY TO ICN-CLIENT");
 			
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
 					null, IPv4.toIPv4Address(ctemp.servers), (int) 24,

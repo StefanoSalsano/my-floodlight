@@ -194,6 +194,7 @@ public class ConetModule implements IFloodlightModule {
 	public boolean tag_based_forwarding = true;
 	
 	public boolean debug_multi_cs = false;
+	public boolean debug_multi_csf = false;
 	
 	public String clients = "";
 	public int bit_clients = 0;
@@ -220,6 +221,8 @@ public class ConetModule implements IFloodlightModule {
 	
     private boolean addbefore = false;
     private boolean addafter = false;
+    
+    public boolean arp = false;
 	
 	/** Sets tag-based forwarding. */
 	public void setTBF(ConetMode tag_based_forwarding) {
@@ -395,7 +398,8 @@ public class ConetModule implements IFloodlightModule {
 	public void removeItemsFromMap(long id, long tAG) {
 		// TODO Auto-generated method stub
 		try{
-			this.println("removeItemsFromMap Prendo Lock");
+			if(this.debug_multi_csf)
+				this.println("removeItemsFromMap Prendo Lock");
 			this.lock_contents.lock();
 			Hashtable <String , CachedContent> myHT = this.cached_contents.get(this.dpLong2String(id));
 			if(this.debug_multi_cs){
@@ -403,16 +407,20 @@ public class ConetModule implements IFloodlightModule {
 				this.println("Tag: " + tAG);
 				//this.println("HashTable: " + myHT);
 			}
-			CachedContent c = myHT.remove(String.valueOf(tAG));
+			CachedContent c = null;
+			if(myHT != null)
+				c = myHT.remove(String.valueOf(tAG));
 			this.lock_contents.unlock();
-			this.println("removeItemsFromMap Rilascio Lock");
+			if(this.debug_multi_csf)
+				this.println("removeItemsFromMap Rilascio Lock");
 			if(this.debug_multi_cs)
 				this.println("RemoveItemsFromMap - Removed:" + c);
 			}
 		finally{
 			if(this.lock_contents.isHeldByCurrentThread()){
 				this.lock_contents.unlock();
-				this.println("removeItemsFromMap finally Rilascio Lock");
+				if(this.debug_multi_csf)
+					this.println("removeItemsFromMap finally Rilascio Lock");
 			}
 		}
 	}
@@ -716,6 +724,81 @@ public class ConetModule implements IFloodlightModule {
 
 	// ******************************** Packet out
 	// *******************************
+	
+
+	public void doArpOutForPacetIn(IOFSwitch sw, OFPacketIn pi, short port_out) {
+		doArpOut(sw, pi.getInPort(), pi.getBufferId(), pi.getPacketData(), port_out, null);
+	}
+
+	protected void doArpOut(IOFSwitch sw, short port_in, int buffer_id, byte[] pkt_data, short port_out,
+			FloodlightContext cntx) {
+
+		this.println("#########################");
+		this.println("DOARPOUT");
+		this.println("#########################");
+		byte[] dst_mac = BinTools.hexStringToBytes("ffffffffffff");
+		OFMatch match = new OFMatch();
+		match.loadFromPacket(pkt_data, port_in);
+		byte[] src_mac = match.getDataLayerSource();
+		byte[] middle = BinTools.hexStringToBytes("81000bb908060001080006040001");
+		byte[] hw_address = match.getDataLayerSource();
+		int ip_src = match.getNetworkSource();
+		int ip_dst = match.getNetworkDestination();
+		byte[] ip_src_byte = new byte[10];
+		byte[] ip_dst_byte = new byte[18];
+		
+		Arrays.fill(ip_src_byte, (byte)0);
+		System.arraycopy(IPv4.toIPv4AddressBytes(ip_src), 0, ip_src_byte, 0, IPv4.toIPv4AddressBytes(ip_src).length);
+		Arrays.fill(ip_dst_byte, (byte)0);
+		System.arraycopy(IPv4.toIPv4AddressBytes(ip_dst), 0, ip_dst_byte, 0, IPv4.toIPv4AddressBytes(ip_dst).length);
+		
+		byte[] packet_data = new byte[60];
+		Arrays.fill(packet_data, (byte)0);
+		System.arraycopy(dst_mac, 0, packet_data, 0, dst_mac.length);
+		System.arraycopy(src_mac, 0, packet_data, (dst_mac.length), src_mac.length);
+		System.arraycopy(middle, 0, packet_data, (dst_mac.length + src_mac.length), middle.length);
+		System.arraycopy(hw_address, 0, packet_data, (dst_mac.length + src_mac.length + middle.length), hw_address.length);
+		System.arraycopy(ip_src_byte, 0, packet_data, (dst_mac.length + src_mac.length + middle.length + hw_address.length), ip_src_byte.length);
+		System.arraycopy(ip_dst_byte, 0, packet_data, ((dst_mac.length + src_mac.length + middle.length + hw_address.length + ip_src_byte.length)), ip_dst_byte.length);
+		OFPacketOut po = (OFPacketOut) floodlightProvider.getOFMessageFactory().getMessage(OFType.PACKET_OUT);
+		po.setInPort(port_in);
+		po.setBufferId(OFPacketOut.BUFFER_ID_NONE);
+		int po_len = OFPacketOut.MINIMUM_LENGTH;
+		
+		
+		this.println("ARP PACKET: " + BinTools.asHex(packet_data));
+		
+		// set actions
+		// OFActionOutput action=new OFActionOutput((short)port_out,(short)0);
+		OFActionOutput action = new OFActionOutput().setPort((short) port_out);
+		// po.setActions(Collections.singletonList((OFAction)action));
+		List<OFAction> actions = new ArrayList<OFAction>(1);
+		actions.add(action);
+		po.setActions(actions);
+		po.setActionsLength((short) OFActionOutput.MINIMUM_LENGTH);
+		po_len += po.getActionsLength();
+
+		this.println("SET PACKET DATA");
+		this.println("FORCE BUFFER_ID_NONE AND PADDING");
+		
+		po.setPacketData(pkt_data);
+		po_len += pkt_data.length;
+		
+		po.setLength(U16.t(po_len));
+
+		// send PacketOut message
+		try {
+			//if(this.debug_multi_cs){
+				this.println("Send PacketOutMessage - No Flow MOD");
+				this.println("POUT Message:" + po);
+			//}
+				this.println("############################");
+			sw.write(po, cntx);
+		} catch (IOException e) {
+			printException(e);
+		}
+		
+	}
 
 	/** Sends out a packet (received as PacketIn) through the given output port. */
 	protected void doPacketOutForPacketIn(IOFSwitch sw, OFPacketIn pi, short port_out) {
@@ -727,11 +810,11 @@ public class ConetModule implements IFloodlightModule {
 			FloodlightContext cntx) {
 		
 		
-		
-		this.println("SWITCH: 0x" + this.dpLong2String(sw.getId()));
+		if(this.debug_multi_csf)
+			this.println("SWITCH: 0x" + this.dpLong2String(sw.getId()));
 		
 		long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
-		if(sw.getId() == ghent_id )
+		if(sw.getId() == ghent_id && this.debug_multi_csf)
 			this.println("WARNING ------------------ GHENT SWITCH");
 		
 		OFMatch match = new OFMatch();
@@ -739,7 +822,7 @@ public class ConetModule implements IFloodlightModule {
 		match.loadFromPacket(pkt_data, port_in);
 		//short vlan = match.getDataLayerVirtualLan();
 		short eth_proto = match.getDataLayerType();
-		//int ip_proto = BinTools.uByte(match.getNetworkProtocol());
+		int ip_proto = BinTools.uByte(match.getNetworkProtocol());
 
 		
 		OFPacketOut po = (OFPacketOut) floodlightProvider.getOFMessageFactory().getMessage(OFType.PACKET_OUT);
@@ -747,24 +830,32 @@ public class ConetModule implements IFloodlightModule {
 		po.setBufferId(buffer_id);
 		int po_len = OFPacketOut.MINIMUM_LENGTH;
 
-		this.println("#########################");
-		this.println("DOPACKETOUT");
-		this.println("#########################");
+		if(this.debug_multi_csf){
+			this.println("#########################");
+			this.println("DOPACKETOUT");
+			this.println("#########################");
+		}
 		IpPacket ip_packet = null;
 		
 			try{
-				this.println("P_IN: " + port_in);
-				this.println("Buff_ID: " + buffer_id);
-				this.println("ETH_LEN: " + (pkt_data.length));
-				this.println("ETH_FRAME: " + BinTools.asHex(pkt_data));
+				if(this.debug_multi_csf){
+					this.println("P_IN: " + port_in);
+					this.println("Buff_ID: " + buffer_id);
+					this.println("ETH_LEN: " + (pkt_data.length));
+					this.println("ETH_FRAME: " + BinTools.asHex(pkt_data));
+				}
 				ip_packet = (eth_proto == 0x800) ? IpPacket.parseRawPacket(pkt_data, 18) : null;
-				this.println("Pack: "+((ip_packet!=null)? "is" : "is NOT")+" an IP packet");
+				if(this.debug_multi_csf)
+					this.println("Pack: "+((ip_packet!=null)? "is" : "is NOT")+" an IP packet");
 				if (ip_packet!=null){
-					this.println("IP LEN: " + (pkt_data.length-18));
-					this.println("IP Packet: "+BinTools.asHex(pkt_data,18,pkt_data.length-18) + "\n\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-					this.println("IP_SRC: " + ip_packet.getSourceAddress());
-					this.println("IP_DST: " + ip_packet.getDestAddress());
-					this.println("IP Options: "+BinTools.asHex(ip_packet.getOptionsBuffer(),ip_packet.getOptionsOffset(),ip_packet.getOptionsLength()));
+					if(this.debug_multi_csf){
+						this.println("IP LEN: " + (pkt_data.length-18));
+						this.println("IP Packet: "+BinTools.asHex(pkt_data,18,pkt_data.length-18) + "\n\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+						this.println("IP_SRC: " + ip_packet.getSourceAddress());
+						this.println("IP_DST: " + ip_packet.getDestAddress());
+						this.println("IP Options: "+BinTools.asHex(ip_packet.getOptionsBuffer(),ip_packet.getOptionsOffset(),ip_packet.getOptionsLength()));
+						this.println("IP Proto: 0x" + Integer.toHexString(ip_proto));
+					}
 				}
 			}
 			catch(ArrayIndexOutOfBoundsException a){
@@ -776,9 +867,10 @@ public class ConetModule implements IFloodlightModule {
 				this.println("OPTION LENGTH: " + ip_packet.getOptionsLength());
 				
 			}
-		
-		this.println("P_OUT: " + port_out);
-		this.println("ETH_PROTO: " + Integer.toHexString(U16.f(eth_proto)));
+		if(this.debug_multi_csf){
+			this.println("P_OUT: " + port_out);
+			this.println("ETH_PROTO: " + Integer.toHexString(U16.f(eth_proto)));
+		}
 		
 		
 		
@@ -795,10 +887,12 @@ public class ConetModule implements IFloodlightModule {
 		po_len += po.getActionsLength();
 
 		// set data if it is included in the PacketIn message
-		if (buffer_id == OFPacketOut.BUFFER_ID_NONE || (padding && pkt_data.length <= 100)) {
-			this.println("SET PACKET DATA");
+		if (buffer_id == OFPacketOut.BUFFER_ID_NONE || (padding && pkt_data.length <= 100 && eth_proto == (short)0x800)) {
+			if(this.debug_multi_csf)	
+				this.println("SET PACKET DATA");
 			if(padding && pkt_data.length <= 100 && eth_proto == (short)0x800){
-				this.println("FORCE BUFFER_ID_NONE AND PADDING");
+				if(this.debug_multi_csf)
+					this.println("FORCE BUFFER_ID_NONE AND PADDING");
 				int diff = (100 - pkt_data.length + 1);
 				byte[] new_pdata = new byte[pkt_data.length + diff];
 				Arrays.fill(new_pdata, (byte)0);
@@ -813,11 +907,11 @@ public class ConetModule implements IFloodlightModule {
 
 		// send PacketOut message
 		try {
-			//if(this.debug_multi_cs){
+			if(this.debug_multi_csf){
 				this.println("Send PacketOutMessage - No Flow MOD");
 				this.println("POUT Message:" + po);
-			//}
 				this.println("############################");
+			}
 			sw.write(po, cntx);
 		} catch (IOException e) {
 			printException(e);
@@ -838,32 +932,40 @@ public class ConetModule implements IFloodlightModule {
 		short port_in = pi.getInPort();
 		byte[] pkt_data = pi.getPacketData();
 		int buffer_id = pi.getBufferId(); 
-		
-		this.println("SWITCH: 0x" + this.dpLong2String(sw.getId()));
+		int ip_proto = BinTools.uByte(match.getNetworkProtocol());
+		if(this.debug_multi_csf)
+			this.println("SWITCH: 0x" + this.dpLong2String(sw.getId()));
 		
 		long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
-		if(sw.getId() == ghent_id )
+		if(sw.getId() == ghent_id && this.debug_multi_csf)
 			this.println("WARNING ------------------ GHENT SWITCH");
 		
-
-		this.println("#########################");
-		this.println("DOFLOWADDFORPACKETIN");
-		this.println("#########################");
+		if(this.debug_multi_csf){
+			this.println("#########################");
+			this.println("DOFLOWADDFORPACKETIN");
+			this.println("#########################");
+		}
 		IpPacket ip_packet = null;
 		
 			try{
-				this.println("P_IN: " + port_in);
-				this.println("Buff_ID: " + buffer_id);
-				this.println("ETH_LEN: " + (pkt_data.length));
-				this.println("ETH_FRAME: " + BinTools.asHex(pkt_data));
+				if(this.debug_multi_csf){
+					this.println("P_IN: " + port_in);
+					this.println("Buff_ID: " + buffer_id);
+					this.println("ETH_LEN: " + (pkt_data.length));
+					this.println("ETH_FRAME: " + BinTools.asHex(pkt_data));
+				}
 				ip_packet = (eth_proto == 0x800) ? IpPacket.parseRawPacket(pkt_data, 18) : null;
-				this.println("Pack: "+((ip_packet!=null)? "is" : "is NOT")+" an IP packet");
+				if(this.debug_multi_csf)
+					this.println("Pack: "+((ip_packet!=null)? "is" : "is NOT")+" an IP packet");
 				if (ip_packet!=null){
-					this.println("IP LEN: " + (pkt_data.length-18));
-					this.println("IP Packet: "+BinTools.asHex(pkt_data,18,pkt_data.length-18) + "\n\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-					this.println("IP_SRC: " + ip_packet.getSourceAddress());
-					this.println("IP_DST: " + ip_packet.getDestAddress());
-					this.println("IP Options: "+BinTools.asHex(ip_packet.getOptionsBuffer(),ip_packet.getOptionsOffset(),ip_packet.getOptionsLength()));
+					if(this.debug_multi_csf){
+						this.println("IP LEN: " + (pkt_data.length-18));
+						this.println("IP Packet: "+BinTools.asHex(pkt_data,18,pkt_data.length-18) + "\n\n @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+						this.println("IP_SRC: " + ip_packet.getSourceAddress());
+						this.println("IP_DST: " + ip_packet.getDestAddress());
+						this.println("IP Options: "+BinTools.asHex(ip_packet.getOptionsBuffer(),ip_packet.getOptionsOffset(),ip_packet.getOptionsLength()));
+						this.println("IP Proto: 0x" + Integer.toHexString(ip_proto));
+					}
 				}
 			}
 			catch(ArrayIndexOutOfBoundsException a){
@@ -875,9 +977,10 @@ public class ConetModule implements IFloodlightModule {
 				this.println("OPTION LENGTH: " + ip_packet.getOptionsLength());
 				
 			}
-		
-		this.println("P_OUT: " + port_out);
-		this.println("ETH_PROTO: " + Integer.toHexString(U16.f(eth_proto)));
+		if(this.debug_multi_csf){
+			this.println("P_OUT: " + port_out);
+			this.println("ETH_PROTO: " + Integer.toHexString(U16.f(eth_proto)));
+		}
 
 
 		// FIXME: current HP switches ignore DL_SRC and DL_DST fields, so we
@@ -931,8 +1034,8 @@ public class ConetModule implements IFloodlightModule {
 		// set actions
 		flowMod.setActions(actions);
 		flowMod.setLength((short) (OFFlowMod.MINIMUM_LENGTH + actions_len));
-
-		println("LearningSwitch: doFlowMod(): " + sw + " " + ((command == OFFlowMod.OFPFC_DELETE) ? "deleting" : "adding") + " flow mod " + flowMod);
+		if(this.debug_multi_csf)
+			println("LearningSwitch: doFlowMod(): " + sw + " " + ((command == OFFlowMod.OFPFC_DELETE) ? "deleting" : "adding") + " flow mod " + flowMod);
 
 		// and write it out
 		try {
@@ -1048,7 +1151,8 @@ public class ConetModule implements IFloodlightModule {
 		}
 
 		if (addbefore)println();
-		println("doStaticFlowAdd(): " + sw + " " + ((command == OFFlowMod.OFPFC_DELETE) ? "DELETE" : "ADD")
+		if(this.debug_multi_csf)
+			println("doStaticFlowAdd(): " + sw + " " + ((command == OFFlowMod.OFPFC_DELETE) ? "DELETE" : "ADD")
 				+ " static flow entry " + flowMod);
 		if (addafter)println();
 
@@ -1067,8 +1171,10 @@ public class ConetModule implements IFloodlightModule {
 
 	/** Delete all flowtable entries. */
 	protected void doFlowModDeleteAll(IOFSwitch sw, short vlan) {
-		println();
-		println("DEBUG: DELETE ALL STATIC FLOW ENTRIES FOR SW 0x" + Long.toHexString(sw.getId()));
+		if(this.debug_multi_csf){
+			println();
+			println("DEBUG: DELETE ALL STATIC FLOW ENTRIES FOR SW 0x" + Long.toHexString(sw.getId()));
+		}
 		// doFlowModStatic(sw,OFFlowMod.OFPFC_DELETE,(short)0,(short)0,vlan,(short)0,null,(int)0,null,(int)0,(byte)0,(short)0,(short)0,(short)-1);
 		doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, vlan, (short) 0x800, null, (int) IPv4.toIPv4Address(net) , (int) bit_net,
 				null, (int) IPv4.toIPv4Address(net), (int) bit_net, (byte) conet_proto, (short) 0, (short) 0, null, 0, (short) 0);

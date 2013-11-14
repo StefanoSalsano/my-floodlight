@@ -158,7 +158,8 @@ public class HandlerMultiCS extends Handler {
 	
 					int conet_ip_addr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_servers[i]));
 					if (ip_src == conet_ip_addr) {
-						cmodule.println("LEARN CONET SERVER: eth_proto=" + Integer.toString(eth_proto, 16) + ",ip_src="
+						if(cmodule.debug_multi_cs)
+							cmodule.println("LEARN CONET SERVER: eth_proto=" + Integer.toString(eth_proto, 16) + ",ip_src="
 								+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", port_in=" + port_in);
 						cmodule.setConetNodePort(dp, cmodule.conet_servers[i], port_in);
 						cmodule.setConetNodeMacAddress(cmodule.conet_servers[i], eth_src);
@@ -241,7 +242,8 @@ public class HandlerMultiCS extends Handler {
 			
 			short command = -1;
 			try{
-				cmodule.println("ProcessCacheServerMessage Prendo Lock");
+				if(cmodule.debug_multi_cs)
+					cmodule.println("ProcessCacheServerMessage Prendo Lock");
 				cmodule.lock_contents.lock();
 				Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(dataPathStr);
 				if (myHT != null ) {
@@ -278,12 +280,14 @@ public class HandlerMultiCS extends Handler {
 					}
 				}
 				cmodule.lock_contents.unlock();
-				cmodule.println("ProcessCacheServerMessage Rilascio Lock");
+				if(cmodule.debug_multi_cs)
+					cmodule.println("ProcessCacheServerMessage Rilascio Lock");
 			}
 			finally{
 				if(cmodule.lock_contents.isHeldByCurrentThread()){
 					cmodule.lock_contents.unlock();
-					cmodule.println("ProcessCacheServerMessage Finally Rilascio Lock");
+					if(cmodule.debug_multi_cs)
+						cmodule.println("ProcessCacheServerMessage Finally Rilascio Lock");
 				}
 			}
 		}
@@ -301,7 +305,8 @@ public class HandlerMultiCS extends Handler {
 			ctemp.println("Handler MultiCS FORWARD TO CLIENT");																											// 
 		if (!ctemp.debug_disable_redirection) {
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER, OTHERWISE SEND TO BOTH ICN-CLIENT AND TO CACHE-SERVER
-			ctemp.println("SEND TO BOTH ICN-CLIENT AND CACHE SERVER");
+			if(ctemp.debug_multi_cs)
+				ctemp.println("SEND TO BOTH ICN-CLIENT AND CACHE SERVER");
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER
 			// @@@@@@
 			// //doFlowModStatic(switches.get(dp),OFFlowMod.OFPFC_ADD,(short)(PRIORITY_STATIC+1),(short)0,vlan,eth_proto,BinTools.hexStringToBytes(getCacheMacAddress(dp)),0,eth_src,ip_src,(byte)conet_proto,(short)0,(short)0,port_in);
@@ -375,8 +380,8 @@ public class HandlerMultiCS extends Handler {
 			// SEND ONLY TO ICN-CLIENT
 			// doFlowModStatic(seen_switches.get(dp),OFFlowMod.OFPFC_ADD,PRIORITY_STATIC,(short)0,vlan,eth_proto,
 			// null,0,eth_src,(int)ip_src,(byte)conet_proto,(short)0,(short)0,port_in);
-			
-			ctemp.println("SEND ONLY TO ICN-CLIENT");
+			if(ctemp.debug_multi_cs)
+				ctemp.println("SEND ONLY TO ICN-CLIENT");
 			
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
 					null, IPv4.toIPv4Address(ctemp.servers), (int) 24,
