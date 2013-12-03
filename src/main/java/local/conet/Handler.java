@@ -66,24 +66,25 @@ public class Handler {
 			return Command.STOP;
 		}
 		
-		short VLAN = match.getDataLayerVirtualLan();
-		short ETH_PROTO = match.getDataLayerType();
 		int IP_PROTO = BinTools.uByte(match.getNetworkProtocol());
 		int IP_SRC = match.getNetworkSource();
 		int SRC_MASK_LEN = match.getNetworkSourceMaskLen();
 		int IP_DST = match.getNetworkDestination();
 		int DST_MASK_LEN = match.getNetworkDestinationMaskLen();
 		
-		if(cmodule.debug_no_conf)
-		cmodule.println("ARRIVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),vlan=" + VLAN
-				+ ", eth_proto=0x" + Integer.toHexString(U16.f(ETH_PROTO))
+		if(cmodule.debug_multi_cs)
+		cmodule.println("ARRIVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),dst_mac" + Long.toHexString(destMac)
+				+ ",vlan=" + vlan + ", eth_proto=0x" + Integer.toHexString(U16.f(eth_proto))
+				+ ", ip_proto=0x" + Integer.toHexString(IP_PROTO) 
 				+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_SRC)) + "/" + SRC_MASK_LEN
 				+ ", ip_dst=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_DST)) + "/" + DST_MASK_LEN);
 		
 		
 		
-		if((destMac == Long.parseLong(BinAddrTools.trimHexString("00:00:c0:a8:80:ff"),16))){
-			cmodule.println("SCOUTING PACKET ARRIVED");
+		if(this.isScoutingPacket(destMac, vlan, eth_proto, IP_PROTO, IP_DST)){
+			if(cmodule.debug_no_conf)
+				cmodule.println("SCOUTING PACKET ARRIVED");
+			this.addCacheServer(sw, pi);
 			return Command.CONTINUE;
 		}
 		
@@ -157,6 +158,49 @@ public class Handler {
 
 
 
+	}
+	
+	// Long sw, String cache_ip, String cache_mac, Integer cache_port, String sw_virtual_mac
+	private void addCacheServer(IOFSwitch sw, OFPacketIn pi) {
+		ConetModule cmod = ConetModule.INSTANCE;
+		Long id = sw.getId();
+		OFMatch match = new OFMatch();
+		match.loadFromPacket(pi.getPacketData(), pi.getInPort());
+		Integer cache_port = (int)pi.getInPort();
+		String cache_ip = BinAddrTools.bytesToIpv4addr(IPv4.toIPv4AddressBytes(match.getNetworkSource()));
+		String cache_mac = BinTools.asHex(match.getDataLayerSource());
+		String s_id = ConetUtility.dpLong2String(id);
+		Long sw_virtual_mac = Long.parseLong(s_id.substring(4,s_id.length()),16);
+		try{
+			if(cmod.debug_no_conf)
+				cmod.println("addCacheServer Prendo Lock");
+			cmod.lock_configurations.lock();
+			while(cmod.seen_virtual_mac_addr.get(sw_virtual_mac) != null){
+				sw_virtual_mac++;
+			}
+			cmod.seen_virtual_mac_addr.put(sw_virtual_mac, id);
+			String temp = Long.toHexString(sw_virtual_mac);
+			int i = 0;
+			if(cmod.debug_no_conf)
+				cmod.println(temp + " - " + temp.length());
+			int size = temp.length();
+			while(i < (12-size)){
+				temp = "0" + temp;
+				i++;
+			}
+			cmod.seen_cache_server.put(id, new CacheServerConfiguration(id, cache_ip, cache_mac, cache_port, temp));
+			if(cmod.debug_no_conf)
+				cmod.println("addCacheServer Rilascio Lock");
+			cmod.lock_configurations.unlock();
+		}
+		finally{
+			if(cmod.lock_configurations.isHeldByCurrentThread()){
+				cmod.lock_configurations.unlock();
+				if(cmod.debug_no_conf)
+					cmod.println("addCacheServer finally Rilascio Lock");
+			}
+		}
+		
 	}
 
 	/*
@@ -264,6 +308,14 @@ public class Handler {
 		
 
 	}
+	
+	protected boolean isScoutingPacket(Long destMac, short Vlan, short eTH_PROTO, int iP_PROTO, int iP_DST){
+		ConetModule ctemp = ConetModule.INSTANCE;
+		if(destMac == Long.parseLong(ctemp.reserved_mac,16) && Vlan == ConetModule.VLAN_ID 
+				&& eTH_PROTO == (short)0x800 && iP_DST == IPv4.toIPv4Address(ctemp.reserved_ip))
+			return true;
+		return false;
+	}
 
 	protected boolean isTaggedRule(short vLAN, short eTH_PROTO, int iP_PROTO, int iP_SRC, int sRC_MASK_LEN, long tAG) {
 		ConetModule ctemp = ConetModule.INSTANCE;
@@ -321,6 +373,8 @@ public class Handler {
 				
 				if (json_message.containsKey("MAC")) {
 					String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString());
+					if(cmodule.debug_no_conf)
+						cmodule.println("Process Cache Server Message - MAC: " + json_cache_mac_addr);
 					datapath = cmodule.getDataPathStringFromCacheMacAddress(json_cache_mac_addr);
 					String dataPathStr = ConetUtility.dpLong2String(datapath);
 					if (!json_cache_mac_addr.equals(cmodule.getCacheMacAddress(datapath)))

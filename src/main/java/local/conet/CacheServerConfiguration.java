@@ -1,7 +1,7 @@
 package local.conet;
 
 public class CacheServerConfiguration {
-	private Pair<String,Long> sw_datapath;
+	private String sw_datapath;
 	private String cache_ip_addr;
 	private String cache_mac_addr;
 	private Integer cache_port;
@@ -9,7 +9,7 @@ public class CacheServerConfiguration {
 //	private Pair<String,Integer> home_server_range;
 	
 	public CacheServerConfiguration(Long sw, String cache_ip, String cache_mac, Integer cache_port, String sw_virtual_mac){
-		this.sw_datapath = new Pair<String,Long>(ConetUtility.dpLong2String(sw),sw);
+		this.sw_datapath = ConetUtility.dpLong2String(sw);
 		this.cache_ip_addr = cache_ip;
 		this.cache_mac_addr = cache_mac;
 		this.cache_port = cache_port;
@@ -17,12 +17,9 @@ public class CacheServerConfiguration {
 //		this.home_server_range = ConetUtility.getPrefixFromString(home_server);
 	}
 	
-	public String getSWL(){
-		return this.sw_datapath.first;
-	}
 	
-	public Long getSWS(){
-		return this.sw_datapath.second;
+	public String getSW(){
+		return this.sw_datapath;
 	}
 	
 	public String getCacheIPAddr(){
@@ -51,7 +48,7 @@ public class CacheServerConfiguration {
 	
 	@Override
 	public String toString(){
-		return "[<" + this.sw_datapath.first + ", " + this.sw_datapath.second + ">, " + this.cache_ip_addr + ", " + this.cache_mac_addr + ","
+		return "[" + this.sw_datapath + ", " + this.cache_ip_addr + ", " + this.cache_mac_addr + ", "
 				+ this.cache_port + ", " + this.sw_virtual_mac_addr + "]";
 	}
 	

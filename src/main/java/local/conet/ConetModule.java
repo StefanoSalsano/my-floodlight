@@ -345,6 +345,7 @@ public class ConetModule implements IFloodlightModule {
 		for (Enumeration i = this.seen_cache_server.keys(); i.hasMoreElements();) {
 			dp = (Long) i.nextElement();
 			mac = this.getCacheMacAddress(dp);
+			this.println(dp + " - " + mac + " - " + cacheMacAddress);
 			if(mac.equals(cacheMacAddress))
 				return dp;
 		}
