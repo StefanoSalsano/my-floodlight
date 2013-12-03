@@ -1,5 +1,6 @@
 package local.conet;
 
+import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -232,8 +233,13 @@ public class HandlerMultiCS extends Handler {
 			long datapath = cmodule.DEFAULT_DATAPATH;
 			
 			String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString());
-			String dataPathStr = cmodule.getDataPathStringFromCacheMacAddress(json_cache_mac_addr);
-			datapath = Long.parseLong(dataPathStr, 16);
+			datapath = cmodule.getDataPathStringFromCacheMacAddress(json_cache_mac_addr);
+			if(datapath == -1){
+				cmodule.println("HANDLERMULTICSF - ERRORE CACHESERVER DATA PROCESS CACHESERVERMESSAGE");
+				msg.getMsgTransportConnection().halt();
+				return;
+			}
+			String dataPathStr = ConetUtility.dpLong2String(datapath);
 			if (json_message.containsKey("DataPath"))
 				datapath = Long.parseLong(json_message.get("DataPath").toString());
 			int dest_ipaddr = 0;
@@ -266,6 +272,7 @@ public class HandlerMultiCS extends Handler {
 					// set flowtable entry for redirecting packets with the given
 					// tag and with the given destination
 					
+					//XXX WARNING REDIRECT CACHE CACHE DATA CAN BE NULL
 					if (dest_ipaddr != 0)
 						redirectToCache(datapath, command, (int) dest_ipaddr,(int) -1,(byte) cmodule.conet_proto, tag);
 					else{
@@ -322,6 +329,15 @@ public class HandlerMultiCS extends Handler {
 //			doFlowModStatic(seen_switches.get(dp), command, (short) (PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
 //					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(getCacheIpAddress(dp))), null,
 //					client_ipaddr, (byte) conet_proto, (short) 0, (short) 0, port);
+			
+			String ip_cache = ctemp.getCacheIpAddress(dp);
+			String mac_cache = ctemp.getCacheMacAddress(dp);
+			short port_cache = ctemp.getCachePort(dp);
+			String mac_sw = ctemp.getSwVirtualMacAddr(dp);
+			if(ip_cache == null || mac_cache == null || port_cache == -1 || mac_sw == null){
+				ctemp.println("HANDLERMULTICS - ERRORE CACHESERVER DATA FORWARDTOCLIENT");
+				return;
+			}
 			
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
 					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(ctemp.cservers)),(int) 24, null,
@@ -415,16 +431,16 @@ public class HandlerMultiCS extends Handler {
 		short command = OFFlowMod.OFPFC_ADD;
 		if(cmodule.debug_multi_cs)
 			cmodule.println("HandlerMultiCS Populate ALL STATIC ICN STATIC ENTRIES");
-		for (int k = 0; k < cmodule.sw_datapath_long.length; k++) {
-			Long dp = cmodule.sw_datapath_long[k];
+		for (Enumeration key = cmodule.seen_cache_server.keys(); key.hasMoreElements();) {
+			Long dp = (Long) key.nextElement();
 			if(cmodule.debug_multi_cs)
-				cmodule.println("SW DP: 0x" + cmodule.dpLong2String(dp));
+				cmodule.println("SW DP: 0x" + ConetUtility.dpLong2String(dp));
 			for (int i = 0; i < cmodule.conet_clients.length; i++) {
 				int client_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_clients[i]));
 				byte[] client_macaddr = cmodule.getConetNodeMacAddress(cmodule.conet_clients[i]);
 				short port = cmodule.getConetNodePort(dp, cmodule.conet_clients[i]);
 				if(cmodule.debug_multi_cs){
-					cmodule.println("Forward To Client DP: 0x" + cmodule.dpLong2String(dp));
+					cmodule.println("Forward To Client DP: 0x" + ConetUtility.dpLong2String(dp));
 					cmodule.println("Forward To Client IP:" + cmodule.conet_clients[i]);
 					cmodule.println("Forward To Client CMD:" + command);
 					cmodule.println("Forward To Client port_out:" + port);
@@ -436,7 +452,7 @@ public class HandlerMultiCS extends Handler {
 				byte[] server_macaddr = cmodule.getConetNodeMacAddress(cmodule.conet_servers[i]);
 				short port = cmodule.getConetNodePort(dp, cmodule.conet_servers[i]);
 				if(cmodule.debug_multi_cs){
-					cmodule.println("Forward To Server DP: 0x" + cmodule.dpLong2String(dp));
+					cmodule.println("Forward To Server DP: 0x" + ConetUtility.dpLong2String(dp));
 					cmodule.println("Forward To Client IP:" + cmodule.conet_servers[i]);
 					cmodule.println("Forward To Server CMD:" + command);
 					cmodule.println("Forward To Server port_out:" + port);

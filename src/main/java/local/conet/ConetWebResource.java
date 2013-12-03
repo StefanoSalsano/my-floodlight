@@ -76,11 +76,12 @@ public class ConetWebResource extends ServerResource
         	//ConetModule.CachedContent[] cached_contents=conet_module.getCachedContents();     
        	    result  = conet_module.getCachedContents();
             return result;
-        }
-        // ONLY FOR TEST:
-        else
-        if (stat_type.equals("test"))
-        {   result.put(switch_id,conet_module);
+        } else if ( stat_type.equals("cacheserver")){
+        	result.put("seen_cache_server", conet_module.seen_cache_server);
+        	return result;
+        }else if (stat_type.equals("test")){   
+        	// ONLY FOR TEST:
+        	result.put(switch_id,conet_module);
             return result;
         }
         // else

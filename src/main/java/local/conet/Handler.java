@@ -19,6 +19,7 @@ import org.openflow.protocol.OFFlowRemoved;
 import org.openflow.protocol.OFHello;
 import org.openflow.protocol.OFMatch;
 import org.openflow.protocol.OFPacketIn;
+import org.openflow.protocol.OFPacketOut;
 import org.openflow.protocol.OFPhysicalPort;
 import org.openflow.protocol.OFPort;
 import org.openflow.protocol.OFPortStatus;
@@ -63,6 +64,27 @@ public class Handler {
 			cmodule.println("LearningSwitch: processPacketInMessage(): ignoring packet addressed to 802.1D/Q reserved addr: switch "
 						+ sw + " vlan " + vlan + " dest MAC " + Long.toString(destMac, 16));
 			return Command.STOP;
+		}
+		
+		short VLAN = match.getDataLayerVirtualLan();
+		short ETH_PROTO = match.getDataLayerType();
+		int IP_PROTO = BinTools.uByte(match.getNetworkProtocol());
+		int IP_SRC = match.getNetworkSource();
+		int SRC_MASK_LEN = match.getNetworkSourceMaskLen();
+		int IP_DST = match.getNetworkDestination();
+		int DST_MASK_LEN = match.getNetworkDestinationMaskLen();
+		
+		if(cmodule.debug_no_conf)
+		cmodule.println("ARRIVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),vlan=" + VLAN
+				+ ", eth_proto=0x" + Integer.toHexString(U16.f(ETH_PROTO))
+				+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_SRC)) + "/" + SRC_MASK_LEN
+				+ ", ip_dst=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_DST)) + "/" + DST_MASK_LEN);
+		
+		
+		
+		if((destMac == Long.parseLong(BinAddrTools.trimHexString("00:00:c0:a8:80:ff"),16))){
+			cmodule.println("SCOUTING PACKET ARRIVED");
+			return Command.CONTINUE;
 		}
 		
 		if(cmodule.debug_multi_cs){
@@ -125,8 +147,10 @@ public class Handler {
 				cmodule.println("$$$$ - GHENT - doArpOutForPacketIn - $$$$");
 				cmodule.doArpOutForPacetIn(sw, pi, OFPort.OFPP_FLOOD.getValue());
 			}
-			if(cmodule.padding)
+			if(cmodule.padding){
 				cmodule.doPacketOutForPacketIn(sw, pi, outPort);
+				pi.setBufferId(OFPacketOut.BUFFER_ID_NONE);
+			}
 			cmodule.doFlowAddForPacketIn(sw, pi, outPort);
 		}
 		return Command.CONTINUE;
@@ -279,6 +303,10 @@ public class Handler {
 				//this sets by default as datapath the first one in the configuration file
 				long datapath = cmodule.DEFAULT_DATAPATH;  
 				
+				//TODO TO CHANGE
+				//TODO CHECK getCacheIPAddress
+				//TODO CHECK getCachMacAddress
+				
 				if (json_message.containsKey("DataPath")) {
 					datapath=Long.parseLong(json_message.get("DataPath").toString());
 				} else {
@@ -293,8 +321,8 @@ public class Handler {
 				
 				if (json_message.containsKey("MAC")) {
 					String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString());
-					String dataPathStr = cmodule.getDataPathStringFromCacheMacAddress(json_cache_mac_addr);
-					datapath = Long.parseLong(dataPathStr, 16);
+					datapath = cmodule.getDataPathStringFromCacheMacAddress(json_cache_mac_addr);
+					String dataPathStr = ConetUtility.dpLong2String(datapath);
 					if (!json_cache_mac_addr.equals(cmodule.getCacheMacAddress(datapath)))
 						cmodule.println("WARNING: cache MAC address mismatch!");
 					if (!cmodule.cached_contents.containsKey(dataPathStr))
@@ -369,7 +397,7 @@ public class Handler {
 			if(cmodule.debug_multi_csf)
 				cmodule.println("FlushAllContents Prendo Lock");
 			cmodule.lock_contents.lock();
-			Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.dpLong2String(datapath));
+			Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(ConetUtility.dpLong2String(datapath));
 			if (myHT != null ) {
 				for (Enumeration i = myHT.keys(); i.hasMoreElements();) {
 					String content_tag = (String) i.nextElement();
@@ -412,11 +440,13 @@ public class Handler {
 			cmodule.println("DELETE ALL CONET RULE");
 		Map<Long, IOFSwitch> switches = cmodule.floodlightProvider.getSwitches();
 		int i = 0;
-		while(i < cmodule.sw_datapath_long.length){
-			if(switches.containsKey(cmodule.sw_datapath_long[i])){
+		long dp = 0;
+		for (Enumeration key = cmodule.seen_cache_server.keys(); key.hasMoreElements();) {
+			dp = (Long) key.nextElement();
+			if(switches.containsKey(dp)){
 				if(cmodule.debug_multi_csf)
-					cmodule.println("Trovato: " + cmodule.sw_datapath[i] + " - DELETE");
-				IOFSwitch sw = switches.get(cmodule.sw_datapath_long[i]);
+					cmodule.println("Trovato: " + ConetUtility.dpLong2String(dp) + " - DELETE");
+				IOFSwitch sw = switches.get(dp);
 				cmodule.doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short) ConetModule.VLAN_ID, (short) 0x800, 
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net, 
 						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net,
@@ -425,7 +455,7 @@ public class Handler {
 					cmodule.println("Delete All Conet Rule Prendo Lock");
 				try{
 					cmodule.lock_contents.lock();
-					Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(cmodule.sw_datapath[i]);
+					Hashtable <String , CachedContent> myHT = cmodule.cached_contents.get(ConetUtility.dpLong2String(dp));
 					if(myHT != null)
 						myHT.clear();
 					cmodule.lock_contents.unlock();
@@ -442,7 +472,7 @@ public class Handler {
 			}
 			else{
 				if(cmodule.debug_multi_csf)
-					cmodule.println("Non Trovato: " + cmodule.sw_datapath[i]);
+					cmodule.println("Non Trovato: " + ConetUtility.dpLong2String(dp));
 			}
 			i++;
 		}

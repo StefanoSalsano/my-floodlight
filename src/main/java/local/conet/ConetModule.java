@@ -128,33 +128,33 @@ public class ConetModule implements IFloodlightModule {
 	 * @param dpLong
 	 * @return
 	 */
-	public String dpLong2String (long dpLong) {
+	/*public String dpLong2String (long dpLong) {
 		String temp = Long.toHexString(dpLong);
 		int len = temp.length();
 		return (("0000000000000000"+temp).substring(len));
-	}
+	}*/
 	//NB from string to long example: Long.parseLong(sw_datapathStr[i], 16);
 	//NB from long to string example: Long.toHexString(sw_datapath_long[i])
 
 	/** Cache server ip address (for the corresponding datapath) */
-	public String[] cache_ip_addr = new String[0];
+	//public String[] cache_ip_addr = new String[0];
 
 	/** Cache server mac address (for the corresponding datapath) 
 	 * it will be stored in the format: 0203000000b0
 	 * leading 0s must be preserved
 	 * (colons can be present in conetcontroller.conf, they will be removed) 
 	 */
-	public String[] cache_mac_addr = new String[0];
+	//public String[] cache_mac_addr = new String[0];
 
 	/** Cache server port of the switch (for the corresponding datapath) */
 	// public short[] cache_port=new short[0];
-	public int[] cache_port = new int[0];
+	//public int[] cache_port = new int[0];
 
 	/**
 	 * Switch virtual mac address used as source address when redirecting
 	 * packets to cache server
 	 */
-	public String[] sw_virtual_mac_addr = new String[0];
+	//public String[] sw_virtual_mac_addr = new String[0];
 
 	/**
 	 * DEBUG: whether disabling the redirection to cache-server of data packets
@@ -189,6 +189,10 @@ public class ConetModule implements IFloodlightModule {
 	 */
 	Hashtable <String, Hashtable<String, CachedContent>> cached_contents = new Hashtable();
 	ReentrantLock lock_contents = new ReentrantLock();
+	
+	Hashtable <Long, CacheServerConfiguration> seen_cache_server = new Hashtable();
+	Hashtable <Long, Long> seen_virtual_mac_addr = new Hashtable();
+	ReentrantLock lock_configurations = new ReentrantLock();
 
 	/** Tag-based forwarding */
 	public boolean tag_based_forwarding = true;
@@ -208,6 +212,7 @@ public class ConetModule implements IFloodlightModule {
 	public String net = "";
 	public int bit_net = 0;
 	
+	
 	public String homeserver_range[] = new String[0];
 	
 	private FlowModLogger flowmodlistener;
@@ -223,6 +228,9 @@ public class ConetModule implements IFloodlightModule {
     private boolean addafter = false;
     
     public boolean arp = false;
+    public String reserved_ip="";
+    public String reserved_mac="";
+    public boolean debug_no_conf=false;
 	
 	/** Sets tag-based forwarding. */
 	public void setTBF(ConetMode tag_based_forwarding) {
@@ -241,42 +249,66 @@ public class ConetModule implements IFloodlightModule {
 			 String[] st = this.homeserver_range[i].split("\\/");
 			 return new Pair<String , Integer>(st[0],Integer.parseInt(st[1]));
 			}
-		
+	
 		return null;
 	}
 
 	/** Gets cache server ip address for the given datapath. */
 	public String getCacheIpAddress(long datapath) {
-		for (int i = 0; i < sw_datapath.length; i++)
-			if (sw_datapath_long[i] == datapath)
-				return cache_ip_addr[i];
-		// else
-		// println("DEBUG: getCacheIpAddress(): "+datapath+"!="+sw_datapath_long[i]+"("+Long.toHexString(sw_datapath_long[i])+")");
-		return null;
+		String ret = null;
+		CacheServerConfiguration csconf = this.seen_cache_server.get(datapath);
+		if(csconf != null){
+			ret = csconf.getCacheIPAddr();
+		}
+		return ret;
+//		for (int i = 0; i < sw_datapath.length; i++)
+//			if (sw_datapath_long[i] == datapath)
+//				return cache_ip_addr[i];
+//		// else
+//		// println("DEBUG: getCacheIpAddress(): "+datapath+"!="+sw_datapath_long[i]+"("+Long.toHexString(sw_datapath_long[i])+")");
+//		return null;
 	}
 
 	/** Gets cache server mac address for the given datapath. */
 	public String getCacheMacAddress(long datapath) {
-		for (int i = 0; i < sw_datapath.length; i++)
-			if (sw_datapath_long[i] == datapath)
-				return cache_mac_addr[i];
-		return null;
+		String ret = null;
+		CacheServerConfiguration csconf = this.seen_cache_server.get(datapath);
+		if(csconf != null){
+			ret = csconf.getCacheMACAddr();
+		}
+		return ret;
+//		for (int i = 0; i < sw_datapath.length; i++)
+//			if (sw_datapath_long[i] == datapath)
+//				return cache_mac_addr[i];
+//		return null;
 	}
 
 	/** Gets cache server port for the given datapath. */
 	public short getCachePort(long datapath) {
-		for (int i = 0; i < sw_datapath.length; i++)
-			if (sw_datapath_long[i] == datapath)
-				return (short) cache_port[i];
-		return 0;
+		int ret = -1;
+		CacheServerConfiguration csconf = this.seen_cache_server.get(datapath);
+		if(csconf != null){
+			ret = csconf.getCachePort();
+		}
+		return (short)ret;	
+//		for (int i = 0; i < sw_datapath.length; i++)
+//			if (sw_datapath_long[i] == datapath)
+//				return (short) cache_port[i];
+//		return 0;
 	}
 
 	/** Gets sw_virtual_mac_addr for the given datapath. */
 	public String getSwVirtualMacAddr(long datapath) {
-		for (int i = 0; i < sw_datapath.length; i++)
-			if (sw_datapath_long[i] == datapath)
-				return sw_virtual_mac_addr[i];
-		return null;
+		String ret = null;
+		CacheServerConfiguration csconf = this.seen_cache_server.get(datapath);
+		if(csconf != null){
+			ret = csconf.getSWAddr();
+		}
+		return ret;
+//		for (int i = 0; i < sw_datapath.length; i++)
+//			if (sw_datapath_long[i] == datapath)
+//				return sw_virtual_mac_addr[i];
+//		return null;
 	}
 	
 	/** Gets conet node port for the given datapath. */
@@ -307,11 +339,20 @@ public class ConetModule implements IFloodlightModule {
 	 * @param cacheMacAddress
 	 * @return -1 if not found
 	 */
-	public String getDataPathStringFromCacheMacAddress(String cacheMacAddress) {
-		for (int i = 0; i < sw_datapath.length; i++)
-			if ( cache_mac_addr[i].equals(cacheMacAddress) )
-				return sw_datapath[i];
-		return null;
+	public long getDataPathStringFromCacheMacAddress(String cacheMacAddress) {
+		Long dp = new Long(-1);
+		String mac = null;
+		for (Enumeration i = this.seen_cache_server.keys(); i.hasMoreElements();) {
+			dp = (Long) i.nextElement();
+			mac = this.getCacheMacAddress(dp);
+			if(mac.equals(cacheMacAddress))
+				return dp;
+		}
+		return -1;
+//		for (int i = 0; i < sw_datapath.length; i++)
+//			if ( cache_mac_addr[i].equals(cacheMacAddress) )
+//				return sw_datapath[i];
+//		return dp;
 	}
 
 	
@@ -396,14 +437,13 @@ public class ConetModule implements IFloodlightModule {
 	}
 	
 	public void removeItemsFromMap(long id, long tAG) {
-		// TODO Auto-generated method stub
 		try{
 			if(this.debug_multi_csf)
 				this.println("removeItemsFromMap Prendo Lock");
 			this.lock_contents.lock();
-			Hashtable <String , CachedContent> myHT = this.cached_contents.get(this.dpLong2String(id));
+			Hashtable <String , CachedContent> myHT = this.cached_contents.get(ConetUtility.dpLong2String(id));
 			if(this.debug_multi_cs){
-				this.println("Id: " + id + " - " + this.dpLong2String(id));
+				this.println("Id: " + id + " - " + ConetUtility.dpLong2String(id));
 				this.println("Tag: " + tAG);
 				//this.println("HashTable: " + myHT);
 			}
@@ -486,31 +526,30 @@ public class ConetModule implements IFloodlightModule {
 		}
 
 		// in case a colon-formatted mac address has been given
-		for (int i = 0; i < cache_mac_addr.length; i++)
-			cache_mac_addr[i] = BinAddrTools.trimHexString(cache_mac_addr[i]);
-
+//		for (int i = 0; i < cache_mac_addr.length; i++)
+//			cache_mac_addr[i] = BinAddrTools.trimHexString(cache_mac_addr[i]);
 		// in case a colon-formatted sw_datapath address has been given
 		for (int i = 0; i < sw_datapath.length; i++)
 			sw_datapath[i] = BinAddrTools.trimHexString(sw_datapath[i]);
-		// convert (String)sw_datapath to (long)sw_datapath_long
+//		// convert (String)sw_datapath to (long)sw_datapath_long
 		sw_datapath_long = new long[sw_datapath.length];
 		for (int i = 0; i < sw_datapath.length; i++)
 			sw_datapath_long[i] = Long.parseLong(sw_datapath[i], 16);
 		for (int i = 0; i < sw_datapath.length; i++) {
-			println("sw_datapath[" + i + "]=" + sw_datapath_long[i] + "(0x" + dpLong2String(sw_datapath_long[i]) + ")");
-			//println("0x"+sw_datapath[i]);
+			println("sw_datapath[" + i + "]=" + sw_datapath_long[i] + "(0x" + ConetUtility.dpLong2String(sw_datapath_long[i]) + ")");
+//			//println("0x"+sw_datapath[i]);
 		}
-
-		// in case a colon-formatted sw_virtual_mac_addr has been given
-		for (int i = 0; i < sw_datapath.length; i++)
-			sw_virtual_mac_addr[i] = BinAddrTools.trimHexString(sw_virtual_mac_addr[i]);
-		// in case a colon-formatted sw_virtual_mac_addr has been given
-		// sw_virtual_mac_addr=BinAddrTools.trimHexString(sw_virtual_mac_addr);
-
-		// set the default datapath
-		// NOTE: this should be removed when the cache server will send datapath
-		// within cache-to-controller messages
-		DEFAULT_DATAPATH = sw_datapath_long[0];
+//
+//		// in case a colon-formatted sw_virtual_mac_addr has been given
+//		for (int i = 0; i < sw_datapath.length; i++)
+//			sw_virtual_mac_addr[i] = BinAddrTools.trimHexString(sw_virtual_mac_addr[i]);
+//		// in case a colon-formatted sw_virtual_mac_addr has been given
+//		// sw_virtual_mac_addr=BinAddrTools.trimHexString(sw_virtual_mac_addr);
+//
+//		// set the default datapath
+//		// NOTE: this should be removed when the cache server will send datapath
+//		// within cache-to-controller messages
+//		DEFAULT_DATAPATH = sw_datapath_long[0];
 
 		// set the default ConetModule
 		INSTANCE = this;
@@ -811,7 +850,7 @@ public class ConetModule implements IFloodlightModule {
 		
 		
 		if(this.debug_multi_csf)
-			this.println("SWITCH: 0x" + this.dpLong2String(sw.getId()));
+			this.println("SWITCH: 0x" + ConetUtility.dpLong2String(sw.getId()));
 		
 		long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
 		if(sw.getId() == ghent_id && this.debug_multi_csf)
@@ -934,7 +973,7 @@ public class ConetModule implements IFloodlightModule {
 		int buffer_id = pi.getBufferId(); 
 		int ip_proto = BinTools.uByte(match.getNetworkProtocol());
 		if(this.debug_multi_csf)
-			this.println("SWITCH: 0x" + this.dpLong2String(sw.getId()));
+			this.println("SWITCH: 0x" + ConetUtility.dpLong2String(sw.getId()));
 		
 		long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
 		if(sw.getId() == ghent_id && this.debug_multi_csf)
@@ -1359,7 +1398,6 @@ public class ConetModule implements IFloodlightModule {
 //	long sup = this.ipToLong("192.168.192.0");
 //	long toverify = this.ipToLong(key);
 //	this.println("INF: " + cservers + " - " + inf);
-//	// TODO Attenzione al SUP
 //	this.println("SUP: 192.168.192.0 - " + sup);
 //	this.println("toverify: " + key + " - " + toverify);
 //	return (toverify > inf && toverify < sup) ? true : false;
@@ -1368,7 +1406,7 @@ public class ConetModule implements IFloodlightModule {
 	
 	
 	
-//	// ONLY FOR TEST:
+// ONLY FOR TEST:
 //			/** Inserts some cached contents, for testing. */
 //			public void testInsertSomeCachedContents() {
 //				println("DEBUG: INSERTS SOME CONTENTS FOR TESTING");
@@ -1383,6 +1421,13 @@ public class ConetModule implements IFloodlightModule {
 //				cached_contents.get("0200000000000001").put("869728097", new CachedContent("_example_1k3", 2, 869728097));
 //				cached_contents.get("0200000000000001").put("123456789", new CachedContent("_abc_def_ghi_jkl", 123, 123456789));
 //				cached_contents.get("0200000000000001").put("223456789", new CachedContent("_a1bc_def_ghi_jkl", 13, 223456789));
+//				
+//				seen_cache_server.put(new Long(123409867), new CacheServerConfiguration(new Long(12409867), "192.168.128.1",
+//						"00AABB110012", new Integer(1), "AABBFDFDDSSA"));
+//				seen_cache_server.put(new Long(113409867), new CacheServerConfiguration(new Long(11409867), "192.168.128.2",
+//						"00AABQ110012", new Integer(1), "AABBFDFQDSSA"));
+//				seen_cache_server.put(new Long(13409867), new CacheServerConfiguration(new Long(13409867), "192.168.128.3",
+//						"00AABB110032", new Integer(1), "AABBFDFD3SSA"));
 //
 //			}
 	
@@ -1866,7 +1911,6 @@ public class ConetModule implements IFloodlightModule {
 
 	
 //	protected Command processPortStatusMessage(IOFSwitch sw, OFPortStatus portStatusMessage) {
-//	// FIXME This is really just an optimization, speeding up removal of
 //	// flow
 //	// entries for a disabled port; think about whether it's really needed
 //	OFPhysicalPort port = portStatusMessage.getDesc();
@@ -2103,7 +2147,6 @@ public class ConetModule implements IFloodlightModule {
 //	if (outPort == null) {
 //		// If we haven't learned the port for the dest MAC/VLAN, flood it
 //		// Don't flood broadcast packets if the broadcast is disabled.
-//		// XXX For LearningSwitch this doesn't do much. The sourceMac is
 //		// removed
 //		// from port map whenever a flow expires, so you would still see
 //		// a lot of floods.
@@ -2340,7 +2383,6 @@ public class ConetModule implements IFloodlightModule {
 //		match.loadFromPacket(pi.getPacketData(), pi.getInPort());
 //
 //		// set match
-//		// FIXME: current HP switches ignore DL_SRC and DL_DST fields, so we
 //		// have to match on
 //		// NW_SRC and NW_DST as well
 //		// SS: I have now set the match ony to DL_SRC, DL_DST, DL_TYPE
