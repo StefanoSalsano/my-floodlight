@@ -31,7 +31,9 @@ import org.openflow.protocol.action.OFActionOutput;
 import org.openflow.util.U16;
 import org.zoolu.net.message.Message;
 import org.zoolu.net.message.MsgTransport;
+import org.zoolu.net.message.MsgTransportConnection;
 import org.zoolu.net.message.StringMessage;
+import org.zoolu.net.message.TcpMsgTransport;
 import org.zoolu.tools.BinAddrTools;
 import org.zoolu.tools.BinTools;
 
@@ -181,8 +183,8 @@ public class Handler {
 			cmod.seen_virtual_mac_addr.put(sw_virtual_mac, id);
 			String temp = Long.toHexString(sw_virtual_mac);
 			int i = 0;
-			if(cmod.debug_no_conf)
-				cmod.println(temp + " - " + temp.length());
+//			if(cmod.debug_no_conf)
+//				cmod.println(temp + " - " + temp.length());
 			int size = temp.length();
 			while(i < (12-size)){
 				temp = "0" + temp;
@@ -373,19 +375,40 @@ public class Handler {
 				
 				if (json_message.containsKey("MAC")) {
 					String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString());
-					if(cmodule.debug_no_conf)
-						cmodule.println("Process Cache Server Message - MAC: " + json_cache_mac_addr);
 					datapath = cmodule.getDataPathStringFromCacheMacAddress(json_cache_mac_addr);
 					String dataPathStr = ConetUtility.dpLong2String(datapath);
-					if (!json_cache_mac_addr.equals(cmodule.getCacheMacAddress(datapath)))
-						cmodule.println("WARNING: cache MAC address mismatch!");
-					if (!cmodule.cached_contents.containsKey(dataPathStr))
-						cmodule.cached_contents.put(dataPathStr, new Hashtable<String, CachedContent>());
+					if (!json_cache_mac_addr.equals(cmodule.getCacheMacAddress(datapath))){
+						cmodule.println("WARNING: cache MAC address mismatch or unknow cache server - Closing Connection");
+						TcpMsgTransport c = (TcpMsgTransport) transport;
+						cmodule.println("Before active connenctions:");
+						for (Enumeration e= c.connections.elements(); e.hasMoreElements(); )
+						{  
+							MsgTransportConnection e_conn=(MsgTransportConnection)e.nextElement();
+						    cmodule.println("conn "+e_conn.toString());
+						}
+						
+						msg.getMsgTransportConnection().halt();
+						
+						c = (TcpMsgTransport) transport;
+						cmodule.println("After active connenctions:");
+						for (Enumeration e = c.connections.elements(); e.hasMoreElements(); )
+						{  
+							MsgTransportConnection e_conn=(MsgTransportConnection)e.nextElement();
+						    cmodule.println("conn "+e_conn.toString());
+						}
+					} else {
+						if (!cmodule.cached_contents.containsKey(dataPathStr))
+							cmodule.cached_contents.put(dataPathStr, new Hashtable<String, CachedContent>());
 	
-					// reset cached contents
-					flushAllContents(datapath);
+						// reset cached contents
+						flushAllContents(datapath);
+					}
 				
+				} else {
+					cmodule.println("WARNING: mac address missing in the Connection setup message - Closing Connection");
+					msg.getMsgTransportConnection().halt();
 				}
+				
 				
 				/*
 				 * for (Enumeration i=cached_contents.keys();
