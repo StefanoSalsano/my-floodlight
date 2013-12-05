@@ -12,6 +12,7 @@ import local.conet.ConetCoreWebResource.TagBasedFW;
 import org.restlet.data.Form;
 import org.restlet.resource.Get;
 import org.restlet.resource.ServerResource;
+import org.zoolu.tools.BinAddrTools;
 //import org.restlet.resource.ResourceException;
 
 
@@ -78,6 +79,23 @@ public class ConetWebResource extends ServerResource
             return result;
         } else if ( stat_type.equals("cacheserver")){
         	result.put("seen_cache_server", conet_module.seen_cache_server);
+        	return result;
+        } else if (stat_type.equals("homeserver")){
+        	if(switch_id.equalsIgnoreCase("all"))
+        		result.put("homeserver_active_configuration", conet_module.homeserver);
+        	else{
+        		String s = r.getFirstValue("value");
+				if(s!=null){
+					if(s.contains("/"))//Better Control is possible
+						conet_module.setHomeServerRange(switch_id, s);
+					else if(s.equalsIgnoreCase("delete"))
+						conet_module.delHomeServerRange(switch_id);
+					result.put("homeserver_active_configuration", conet_module.homeserver);
+    			}
+				else
+					result.put("homeserver_active_configuration", conet_module.homeserver.get(BinAddrTools.trimHexString(switch_id)));
+					
+        	}
         	return result;
         }else if (stat_type.equals("test")){   
         	// ONLY FOR TEST:

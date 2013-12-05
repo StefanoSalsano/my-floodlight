@@ -31,7 +31,7 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 			String mac_cache = ctemp.getCacheMacAddress(dp);
 			short port_cache = ctemp.getCachePort(dp);
 			String mac_sw = ctemp.getSwVirtualMacAddr(dp);
-			if(ip_cache == null || mac_cache == null || hserver==null || port_cache == -1 || mac_sw == null){
+			if(ip_cache == null || mac_cache == null || port_cache == -1 || mac_sw == null){
 				ctemp.println("HANDLERMULTICSF - ERRORE CACHESERVER DATA FORWARDTOCLIENT");
 				return;
 			}
@@ -42,11 +42,12 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 					client_ipaddr,-1, (byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
 			
 			
-			
+			if(hserver != null){
 			// SEND TO ICN-CLIENT IF COMING FROM HOME SERVER
-			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC+50), (short) 0, vlan, (short) 0x800,
-					null, IPv4.toIPv4Address(hserver.first), hserver.second, client_macaddr, client_ipaddr, -1, (byte) ctemp.conet_proto,
-					(short) 0, (short) 0, port, (short) 0);
+				ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC+50), (short) 0, vlan, (short) 0x800,
+						null, IPv4.toIPv4Address(hserver.first), hserver.second, client_macaddr, client_ipaddr, -1, (byte) ctemp.conet_proto,
+						(short) 0, (short) 0, port, (short) 0);
+			}
 			
 			
 			// SEND TO BOTH ICN-CLIENT AND TO CACHE-SERVER IF COMING FROM FOREIGN SERVER

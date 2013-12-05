@@ -46,7 +46,7 @@ abstract class ConnectedMsgTransport implements MsgTransport, TcpServerListener,
    int nmax_connections=0;
 
    /** Table of active connections (Hashtable<SocketAddress,MsgTransportConnection>) */
-   public Hashtable connections=null;
+   Hashtable connections=null;
 
    /** MsgTransport listener */
    protected MsgTransportListener listener;   

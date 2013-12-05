@@ -31,9 +31,7 @@ import org.openflow.protocol.action.OFActionOutput;
 import org.openflow.util.U16;
 import org.zoolu.net.message.Message;
 import org.zoolu.net.message.MsgTransport;
-import org.zoolu.net.message.MsgTransportConnection;
 import org.zoolu.net.message.StringMessage;
-import org.zoolu.net.message.TcpMsgTransport;
 import org.zoolu.tools.BinAddrTools;
 import org.zoolu.tools.BinTools;
 
@@ -379,23 +377,7 @@ public class Handler {
 					String dataPathStr = ConetUtility.dpLong2String(datapath);
 					if (!json_cache_mac_addr.equals(cmodule.getCacheMacAddress(datapath))){
 						cmodule.println("WARNING: cache MAC address mismatch or unknow cache server - Closing Connection");
-						TcpMsgTransport c = (TcpMsgTransport) transport;
-						cmodule.println("Before active connenctions:");
-						for (Enumeration e= c.connections.elements(); e.hasMoreElements(); )
-						{  
-							MsgTransportConnection e_conn=(MsgTransportConnection)e.nextElement();
-						    cmodule.println("conn "+e_conn.toString());
-						}
-						
 						msg.getMsgTransportConnection().halt();
-						
-						c = (TcpMsgTransport) transport;
-						cmodule.println("After active connenctions:");
-						for (Enumeration e = c.connections.elements(); e.hasMoreElements(); )
-						{  
-							MsgTransportConnection e_conn=(MsgTransportConnection)e.nextElement();
-						    cmodule.println("conn "+e_conn.toString());
-						}
 					} else {
 						if (!cmodule.cached_contents.containsKey(dataPathStr))
 							cmodule.cached_contents.put(dataPathStr, new Hashtable<String, CachedContent>());

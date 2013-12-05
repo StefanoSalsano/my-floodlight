@@ -118,7 +118,7 @@ public class ConetModule implements IFloodlightModule {
 	/** SW datapath */
 	// public long[] sw_datapath=new long[0];
 	public String[] sw_datapath = new String[0];
-	long[] sw_datapath_long = new long[0];
+	//long[] sw_datapath_long = new long[0];
 	
 	/**
 	 * This is needed to convert a dataPath long into an Hex string
@@ -214,6 +214,8 @@ public class ConetModule implements IFloodlightModule {
 	
 	
 	public String homeserver_range[] = new String[0];
+	Hashtable <String, Pair<String,Integer>> homeserver = new Hashtable();
+	ReentrantLock lock_homeserver = new ReentrantLock();
 	
 	private FlowModLogger flowmodlistener;
 	private ConetListener conetlistener;
@@ -244,14 +246,56 @@ public class ConetModule implements IFloodlightModule {
 	
 	
 	public Pair<String, Integer> getHomeServerRange(long datapath) {
-		for (int i = 0; i < sw_datapath.length; i++)
-			if (sw_datapath_long[i] == datapath){
-			 String[] st = this.homeserver_range[i].split("\\/");
-			 return new Pair<String , Integer>(st[0],Integer.parseInt(st[1]));
-			}
-	
+		String key = ConetUtility.dpLong2String(datapath);
+		if(this.homeserver.containsKey(key)){
+			return this.homeserver.get(key);
+		}
 		return null;
+//		for (int i = 0; i < sw_datapath.length; i++)
+//			if (sw_datapath_long[i] == datapath){
+//			 String[] st = this.homeserver_range[i].split("\\/");
+//			 return new Pair<String , Integer>(st[0],Integer.parseInt(st[1]));
+//			}
+//		return null;
 	}
+	
+	public void setHomeServerRange(String s, String homes){
+		String key = BinAddrTools.trimHexString(s);
+		try{
+			this.lock_homeserver.lock();
+			String[] st;
+			st = homes.split("\\/");
+			this.homeserver.put(key,new Pair<String,Integer>(st[0],Integer.parseInt(st[1])));
+			this.lock_homeserver.unlock();
+		}
+		finally{
+			if(this.lock_homeserver.isHeldByCurrentThread()){
+				this.lock_homeserver.unlock();
+				if(this.debug_no_conf)
+					this.println("setHomeserver finally Rilascio Lock");
+			}
+		}
+		
+	}
+	
+	public void delHomeServerRange(String s){
+		String key = BinAddrTools.trimHexString(s);
+		try{
+			this.lock_homeserver.lock();
+			this.homeserver.remove(key);
+			this.lock_homeserver.unlock();
+		}
+		finally{
+			if(this.lock_homeserver.isHeldByCurrentThread()){
+				this.lock_homeserver.unlock();
+				if(this.debug_no_conf)
+					this.println("setHomeserver finally Rilascio Lock");
+			}
+		}
+		
+	}
+	
+	
 
 	/** Gets cache server ip address for the given datapath. */
 	public String getCacheIpAddress(long datapath) {
@@ -533,13 +577,30 @@ public class ConetModule implements IFloodlightModule {
 		for (int i = 0; i < sw_datapath.length; i++)
 			sw_datapath[i] = BinAddrTools.trimHexString(sw_datapath[i]);
 //		// convert (String)sw_datapath to (long)sw_datapath_long
-		sw_datapath_long = new long[sw_datapath.length];
-		for (int i = 0; i < sw_datapath.length; i++)
-			sw_datapath_long[i] = Long.parseLong(sw_datapath[i], 16);
-		for (int i = 0; i < sw_datapath.length; i++) {
-			println("sw_datapath[" + i + "]=" + sw_datapath_long[i] + "(0x" + ConetUtility.dpLong2String(sw_datapath_long[i]) + ")");
+//		sw_datapath_long = new long[sw_datapath.length];
+//		for (int i = 0; i < sw_datapath.length; i++)
+//			sw_datapath_long[i] = Long.parseLong(sw_datapath[i], 16);
+//		for (int i = 0; i < sw_datapath.length; i++) {
+//			println("sw_datapath[" + i + "]=" + sw_datapath_long[i] + "(0x" + ConetUtility.dpLong2String(sw_datapath_long[i]) + ")");
 //			//println("0x"+sw_datapath[i]);
+//		}
+		try{
+			this.lock_homeserver.lock();
+			String[] st;
+			for (int i = 0; i < sw_datapath.length; i++){
+				st = this.homeserver_range[i].split("\\/");
+				this.homeserver.put(sw_datapath[i],new Pair<String,Integer>(st[0],Integer.parseInt(st[1])));
+			}
+			this.lock_homeserver.unlock();
 		}
+		finally{
+			if(this.lock_homeserver.isHeldByCurrentThread()){
+				this.lock_homeserver.unlock();
+				if(this.debug_no_conf)
+					this.println("init Homeserver finally Rilascio Lock");
+			}
+		}
+		
 //
 //		// in case a colon-formatted sw_virtual_mac_addr has been given
 //		for (int i = 0; i < sw_datapath.length; i++)
