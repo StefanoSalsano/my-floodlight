@@ -1,4 +1,5 @@
 package local.conet;
+
       
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -217,10 +218,13 @@ public class SubnetUtils {
 		try {
 			String subnet = this.getInfo().getNetworkAddress();
 			String broadcast = this.getInfo().getBroadcastAddress();
+			String netmask = this.getInfo().getNetmask();
 			byte[] firstAddressInBytes = InetAddress.getByName(ip).getAddress();
 			byte[] subnetAddressInBytes = InetAddress.getByName(subnet).getAddress();
+			byte[] maskAddressInBytes = InetAddress.getByName(netmask).getAddress();
 			int position = 0;
 			byte subnetByte;
+			byte maskByte;
 			if(ip.equals(subnet)){
 				System.out.println("IP Address (" + ip + ") is the network address");
 				return false;
@@ -229,12 +233,19 @@ public class SubnetUtils {
 				System.out.println("IP Address (" + ip + ") is the broadcast address");
 				return false;
 			}
+			System.out.println(ip);
+			System.out.println(subnet);
+			System.out.println(netmask);
 			for (byte oneByte : firstAddressInBytes) {
-				subnetByte = subnetAddressInBytes[position++];
-				if ((oneByte & subnetByte) != (subnetByte)) {
+				subnetByte = subnetAddressInBytes[position];
+				maskByte = maskAddressInBytes[position];
+				if ((oneByte & maskByte) != (subnetByte)) {
 					System.out.println("IP Address (" + ip + ") is NOT in the network ("+ subnet + ")");
 					return false;
 				}
+				//System.out.println(oneByte);
+				//System.out.println(subnetByte);
+				position++;
 			}
 			
 			System.out.println("IP Address (" + ip + ") is in the network ("+ subnet + ")");

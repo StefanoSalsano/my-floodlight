@@ -466,7 +466,7 @@ public class HandlerMultiCS extends Handler {
 			Long dp = (Long) key.nextElement();
 			if(cmodule.debug_no_conf)
 				cmodule.println("SW DP: 0x" + ConetUtility.dpLong2String(dp));
-			for (Enumeration host = cmodule.ip_mac_mapping.keys(); key.hasMoreElements();){
+			for (Enumeration host = cmodule.ip_mac_mapping.keys(); host.hasMoreElements();){
 				String conet_ip = (String) host.nextElement();
 				if(cmodule.debug_no_conf)
 					cmodule.println("Next Know Conet Host:" + conet_ip);
