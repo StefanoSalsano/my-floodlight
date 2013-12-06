@@ -38,8 +38,9 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 			
 			// SEND ONLY TO ICN-CLIENT IF COMING FROM CACHE-SERVER
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
-					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(ctemp.cservers)),(int) 24, null,
-					client_ipaddr,-1, (byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
+					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(ctemp.cserversnet.getInfo().getNetworkAddress())),
+					(int) ctemp.cserversnet.getInfo().getBitmask(), null, client_ipaddr,-1, (byte) ctemp.conet_proto, (short) 0, (short) 0,
+					port, (short) 0);
 			
 			
 			if(hserver != null){
@@ -82,10 +83,8 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 			actions_len += OFActionOutput.MINIMUM_LENGTH;
 						
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800, 
-					null, (int)IPv4.toIPv4Address(ctemp.servers), (int) 24,
-					client_macaddr, client_ipaddr,(int) -1, 
-					(byte) ctemp.conet_proto, (short) 0, (short) 0, actions_vector,
-					((short) actions_len), (short) 0);	
+					null, (int)IPv4.toIPv4Address(ctemp.serversnet.getInfo().getNetworkAddress()), (int) ctemp.serversnet.getInfo().getBitmask(),
+					client_macaddr, client_ipaddr,(int) -1, (byte) ctemp.conet_proto, (short) 0, (short) 0, actions_vector, ((short) actions_len), (short) 0);	
 			
 		} else { 
 			
@@ -94,7 +93,7 @@ public class HandlerMultiCSF extends HandlerMultiCS {
 				ctemp.println("HandlerMultiCS SEND ONLY TO ICN-CLIENT");
 			
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
-					null, IPv4.toIPv4Address(ctemp.servers), (int) 24,
+					null, IPv4.toIPv4Address(ctemp.serversnet.getInfo().getNetworkAddress()), (int) ctemp.serversnet.getInfo().getBitmask(),
 					client_macaddr, client_ipaddr, (int) -1,
 					(byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
 		

@@ -320,8 +320,8 @@ public class Handler {
 	protected boolean isTaggedRule(short vLAN, short eTH_PROTO, int iP_PROTO, int iP_SRC, int sRC_MASK_LEN, long tAG) {
 		ConetModule ctemp = ConetModule.INSTANCE;
 		if(vLAN == ConetModule.VLAN_ID && eTH_PROTO == (short)0x800
-				&& (iP_PROTO == ctemp.conet_proto && iP_SRC == IPv4.toIPv4Address(ctemp.clients) && sRC_MASK_LEN == ctemp.bit_clients)
-				&& tAG != 0)
+				&& (iP_PROTO == ctemp.conet_proto && iP_SRC == IPv4.toIPv4Address(ctemp.clientsnet.getInfo().getNetworkAddress()) 
+				&& sRC_MASK_LEN == ctemp.clientsnet.getInfo().getBitmask()) && tAG != 0)
 			return true;
 		return false;
 	}
@@ -469,8 +469,8 @@ public class Handler {
 					// cache-to-controller messages
 					if(cmodule.debug_multi_csf)
 						cmodule.println("TAG TO BE REMOVED : "+ content_tag);
-					redirectToCache(datapath, OFFlowMod.OFPFC_DELETE, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.servers)),
-							(int) cmodule.bit_servers, (byte) cmodule.conet_proto, tag);
+					redirectToCache(datapath, OFFlowMod.OFPFC_DELETE, (int) IPv4.toIPv4Address(cmodule.serversnet.getInfo().getNetworkAddress()),
+							(int) cmodule.serversnet.getInfo().getBitmask(), (byte) cmodule.conet_proto, tag);
 				}
 				myHT.clear();
 	//			cmodule.cached_contents.put(cmodule.dpLong2String(datapath), new Hashtable<String, CachedContent>());
@@ -507,8 +507,8 @@ public class Handler {
 					cmodule.println("Trovato: " + ConetUtility.dpLong2String(dp) + " - DELETE");
 				IOFSwitch sw = switches.get(dp);
 				cmodule.doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, (short) ConetModule.VLAN_ID, (short) 0x800, 
-						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net, 
-						null, (int) IPv4.toIPv4Address(cmodule.net), (int) cmodule.bit_net,
+						null, (int) IPv4.toIPv4Address(cmodule.subnet.getInfo().getNetworkAddress()), (int) cmodule.subnet.getInfo().getBitmask(), 
+						null, (int) IPv4.toIPv4Address(cmodule.subnet.getInfo().getNetworkAddress()), (int) cmodule.subnet.getInfo().getBitmask(),
 						(byte) cmodule.conet_proto, (short) 0, (short) 0, null, 0, (short) 0);
 				if(cmodule.debug_multi_csf)
 					cmodule.println("Delete All Conet Rule Prendo Lock");
@@ -592,7 +592,7 @@ public class Handler {
 			// doFlowModStatic(sw,command,PRIORITY_REDIRECTION,(short)0,(short)VLAN_ID,(short)0x800,null,0,null,dest_ipaddr,ip_proto,tag,Arrays.asList(actions),(short)actions_len);
 			
 			cmodule.doFlowModStatic(sw, command, (short)(ConetModule.PRIORITY_REDIRECTION+50), (short) 0, (short) ConetModule.VLAN_ID, (short) 0x800,
-					null, IPv4.toIPv4Address(cmodule.clients), cmodule.bit_clients, null, dest_ipaddr, dest_cidr, ip_proto, tag, actions_vector, (short) actions_len, (short) cmodule.CONET_IDLE_TIMEOUT);
+					null, IPv4.toIPv4Address(cmodule.clientsnet.getInfo().getNetworkAddress()), cmodule.clientsnet.getInfo().getBitmask(), null, dest_ipaddr, dest_cidr, ip_proto, tag, actions_vector, (short) actions_len, (short) cmodule.CONET_IDLE_TIMEOUT);
 			
 			// @@@@@@
 			// sw.flush();

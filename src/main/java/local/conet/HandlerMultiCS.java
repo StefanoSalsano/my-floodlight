@@ -116,59 +116,91 @@ public class HandlerMultiCS extends Handler {
 						cmodule.println("CHECK CACHE SERVER: ip_addr=" + cache_ipaddr + ", mac_addr=" + cache_macaddr
 								+ ", port=" + port_in);
 				}
-
-				// LEARN MAC AND PORT OF ICN CLIENTS
-				for (int i = 0; cmodule.conet_clients != null && i < cmodule.conet_clients.length; i++) {
-					
-					// for each existing client IP address, if the address is
-					// already registered, continue
-					// note that this does not work well if clients move around
-					
-					if (cmodule.getConetNodePort(dp, cmodule.conet_clients[i]) > 0)
-						continue;
-					
-					int conet_ip_addr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_clients[i]));
-					if (ip_src == conet_ip_addr) { 
+				
+				boolean isclient = cmodule.clientsnet.doyoubelong(IPv4.fromIPv4Address(ip_src));
+				boolean isserver = cmodule.serversnet.doyoubelong(IPv4.fromIPv4Address(ip_src));
+				
+				
+				if(cmodule.getConetNodePort(dp, IPv4.fromIPv4Address(ip_src))==0 && (isclient || isserver)){
+					if(cmodule.debug_no_conf)
+						cmodule.println("It's A New Host");
+					cmodule.setConetNodePort(dp, IPv4.fromIPv4Address(ip_src), port_in);
+					cmodule.setConetNodeMacAddress(IPv4.fromIPv4Address(ip_src), eth_src);
+					if(isclient){
+						if(cmodule.debug_no_conf){
+							cmodule.println("It's A New Client");
+							cmodule.println("Learn Conet Client: eth_proto=" + Integer.toString(eth_proto, 16) + ",ip_src="
+									+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", port_in=" + port_in);
+						}
 						
-						// we check that the IP src is a conet client address,
-						// we create our own database of forwarding information
-						// for each CONET client
-						// we use this database when we disable
-						// tag_based_forwarding and then we reenable it
-						// to recreate all static forwarding rules without
-						// waiting for new packet in messages
-						
-						if(cmodule.debug_multi_cs)
-						cmodule.println("LEARN CONET CLIENT: eth_proto=" + Integer.toString(eth_proto, 16) + ",ip_src="
-								+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", port_in=" + port_in);
-						
-						cmodule.setConetNodePort(dp, cmodule.conet_clients[i], port_in);
-						cmodule.setConetNodeMacAddress(cmodule.conet_clients[i], eth_src);
-
 						// SET ICN-CLIENT FORWARDING RULES
 						forwardToClient(dp, OFFlowMod.OFPFC_ADD, vlan, eth_src, ip_src, port_in);
-						break;
 					}
-				}
-
-				// LEARN MAC AND PORT OF ICN SERVERS
-				for (int i = 0; cmodule.conet_servers != null && i < cmodule.conet_servers.length; i++) {
-					
-					if (cmodule.getConetNodePort(dp, cmodule.conet_servers[i]) > 0)
-						continue;
-	
-					int conet_ip_addr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_servers[i]));
-					if (ip_src == conet_ip_addr) {
-						if(cmodule.debug_multi_cs)
-							cmodule.println("LEARN CONET SERVER: eth_proto=" + Integer.toString(eth_proto, 16) + ",ip_src="
-								+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", port_in=" + port_in);
-						cmodule.setConetNodePort(dp, cmodule.conet_servers[i], port_in);
-						cmodule.setConetNodeMacAddress(cmodule.conet_servers[i], eth_src);
+					else if(isserver){
+						if(cmodule.debug_no_conf){
+							cmodule.println("It's A New Server");
+							cmodule.println("Learn Conet Server: eth_proto=" + Integer.toString(eth_proto, 16) + ",ip_src="
+									+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", port_in=" + port_in);
+						}
 						// SET ICN-SERVER FORWARDING RULES
 						forwardToServer(dp, OFFlowMod.OFPFC_ADD, vlan, eth_src, ip_src, port_in);
-						break;
 					}
+					
 				}
+				
+				
+//				// LEARN MAC AND PORT OF ICN CLIENTS
+//				for (int i = 0; cmodule.conet_clients != null && i < cmodule.conet_clients.length; i++) {
+//					
+//					// for each existing client IP address, if the address is
+//					// already registered, continue
+//					// note that this does not work well if clients move around
+//					
+//					if (cmodule.getConetNodePort(dp, cmodule.conet_clients[i]) > 0)
+//						continue;
+//					
+//					int conet_ip_addr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_clients[i]));
+//					if (ip_src == conet_ip_addr) { 
+//						
+//						// we check that the IP src is a conet client address,
+//						// we create our own database of forwarding information
+//						// for each CONET client
+//						// we use this database when we disable
+//						// tag_based_forwarding and then we reenable it
+//						// to recreate all static forwarding rules without
+//						// waiting for new packet in messages
+//						
+//						if(cmodule.debug_multi_cs)
+//						cmodule.println("LEARN CONET CLIENT: eth_proto=" + Integer.toString(eth_proto, 16) + ",ip_src="
+//								+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", port_in=" + port_in);
+//						
+//						cmodule.setConetNodePort(dp, cmodule.conet_clients[i], port_in);
+//						cmodule.setConetNodeMacAddress(cmodule.conet_clients[i], eth_src);
+//
+//						// SET ICN-CLIENT FORWARDING RULES
+//						forwardToClient(dp, OFFlowMod.OFPFC_ADD, vlan, eth_src, ip_src, port_in);
+//						break;
+//					}
+//				}
+
+				// LEARN MAC AND PORT OF ICN SERVERS
+//				for (int i = 0; cmodule.conet_servers != null && i < cmodule.conet_servers.length; i++) {
+//					
+//					if (cmodule.getConetNodePort(dp, cmodule.conet_servers[i]) > 0)
+//						continue;
+//	
+//					int conet_ip_addr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_servers[i]));
+//					if (ip_src == conet_ip_addr) {
+//						if(cmodule.debug_multi_cs)
+//							cmodule.println("LEARN CONET SERVER: eth_proto=" + Integer.toString(eth_proto, 16) + ",ip_src="
+//								+ BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(ip_src)) + ", port_in=" + port_in);
+//						cmodule.setConetNodePort(dp, cmodule.conet_servers[i], port_in);
+//						cmodule.setConetNodeMacAddress(cmodule.conet_servers[i], eth_src);
+//						// SET ICN-SERVER FORWARDING RULES
+//						forwardToServer(dp, OFFlowMod.OFPFC_ADD, vlan, eth_src, ip_src, port_in);
+//						break;
+//					}
+//				}
 			}
 
 			/*
@@ -282,8 +314,8 @@ public class HandlerMultiCS extends Handler {
 						// NOTE: this should be changed when the cache server will send
 						// also the destination (together with tag info) within
 						// cache-to-controller messages
-						super.redirectToCache(datapath, command,(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.servers)),
-								(int) 24, (byte) cmodule.conet_proto, tag);
+						super.redirectToCache(datapath, command,(int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.serversnet.getInfo().getNetworkAddress())),
+								(int) cmodule.serversnet.getInfo().getBitmask(), (byte) cmodule.conet_proto, tag);
 					}
 				}
 				cmodule.lock_contents.unlock();
@@ -340,8 +372,8 @@ public class HandlerMultiCS extends Handler {
 			}
 			
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
-					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(ctemp.cservers)),(int) 24, null,
-					client_ipaddr,-1, (byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
+					null, (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(ctemp.cserversnet.getInfo().getNetworkAddress())),
+					(int) ctemp.cserversnet.getInfo().getBitmask(), null, client_ipaddr,-1, (byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
 			
 			// Other attempt, that didn't work:
 			// doFlowModStatic(switches.get(dp),command,(short)(PRIORITY_STATIC+1),getCachePort(dp),vlan,(short)0x800,BinTools.hexStringToBytes(getCacheMacAddress(dp)),
@@ -384,7 +416,7 @@ public class HandlerMultiCS extends Handler {
 			// doFlowModStatic(seen_switches.get(dp),OFFlowMod.OFPFC_ADD,PRIORITY_STATIC,(short)0,vlan,eth_proto,null,0,eth_src,(int)ip_src,(byte)conet_proto,(short)0,(short)0,Arrays.asList(actions),((short)actions_len));
 			
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800, 
-					null, (int)IPv4.toIPv4Address(ctemp.servers), (int) 24,
+					null, (int)IPv4.toIPv4Address(ctemp.serversnet.getInfo().getNetworkAddress()), (int) ctemp.serversnet.getInfo().getBitmask(),
 					client_macaddr, client_ipaddr,(int) -1, 
 					(byte) ctemp.conet_proto, (short) 0, (short) 0, actions_vector,
 					((short) actions_len), (short) 0);
@@ -400,9 +432,8 @@ public class HandlerMultiCS extends Handler {
 				ctemp.println("SEND ONLY TO ICN-CLIENT");
 			
 			ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC), (short) 0, vlan, (short) 0x800,
-					null, IPv4.toIPv4Address(ctemp.servers), (int) 24,
-					client_macaddr, client_ipaddr, (int) -1,
-					(byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
+					null, IPv4.toIPv4Address(ctemp.serversnet.getInfo().getNetworkAddress()), (int) ctemp.serversnet.getInfo().getBitmask(),
+					client_macaddr, client_ipaddr, (int) -1, (byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
 		
 		}
 	}
@@ -419,7 +450,7 @@ public class HandlerMultiCS extends Handler {
 		// (int)ip_src,(byte)conet_proto,(short)0,(short)0,(short)port_in);
 
 		ctemp.doFlowModStatic(ctemp.seen_switches.get(dp), command, (short) (ConetModule.PRIORITY_STATIC + 1), (short) 0, vlan, (short) 0x800, 
-				null, IPv4.toIPv4Address(ctemp.clients), (int) 24, 
+				null, IPv4.toIPv4Address(ctemp.clientsnet.getInfo().getNetworkAddress()), (int) ctemp.clientsnet.getInfo().getBitmask(), 
 				server_macaddr, server_ipaddr, (int) -1,
 				(byte) ctemp.conet_proto, (short) 0, (short) 0, port, (short) 0);
 
@@ -433,32 +464,58 @@ public class HandlerMultiCS extends Handler {
 			cmodule.println("HandlerMultiCS Populate ALL STATIC ICN STATIC ENTRIES");
 		for (Enumeration key = cmodule.seen_cache_server.keys(); key.hasMoreElements();) {
 			Long dp = (Long) key.nextElement();
-			if(cmodule.debug_multi_cs)
+			if(cmodule.debug_no_conf)
 				cmodule.println("SW DP: 0x" + ConetUtility.dpLong2String(dp));
-			for (int i = 0; i < cmodule.conet_clients.length; i++) {
-				int client_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_clients[i]));
-				byte[] client_macaddr = cmodule.getConetNodeMacAddress(cmodule.conet_clients[i]);
-				short port = cmodule.getConetNodePort(dp, cmodule.conet_clients[i]);
-				if(cmodule.debug_multi_cs){
-					cmodule.println("Forward To Client DP: 0x" + ConetUtility.dpLong2String(dp));
-					cmodule.println("Forward To Client IP:" + cmodule.conet_clients[i]);
-					cmodule.println("Forward To Client CMD:" + command);
-					cmodule.println("Forward To Client port_out:" + port);
+			for (Enumeration host = cmodule.ip_mac_mapping.keys(); key.hasMoreElements();){
+				String conet_ip = (String) host.nextElement();
+				if(cmodule.debug_no_conf)
+					cmodule.println("Next Know Conet Host:" + conet_ip);
+				byte[] conet_macaddr = cmodule.getConetNodeMacAddress(conet_ip);
+				short port = cmodule.getConetNodePort(dp, conet_ip);
+				int conet_ipaddr = IPv4.toIPv4Address(conet_ip);
+				if(cmodule.clientsnet.doyoubelong(conet_ip)){
+					if(cmodule.debug_no_conf){
+						cmodule.println("Forward To Client DP: 0x" + ConetUtility.dpLong2String(dp));
+						cmodule.println("Forward To Client IP:" + conet_ip);
+						cmodule.println("Forward To Client CMD:" + command);
+						cmodule.println("Forward To Client port_out:" + port);
+					}
+					forwardToClient(dp, command, (short) ConetModule.VLAN_ID, conet_macaddr, conet_ipaddr, port);
 				}
-				forwardToClient(dp, command, (short) ConetModule.VLAN_ID, client_macaddr, client_ipaddr, port);
-			}
-			for (int i = 0; i < cmodule.conet_servers.length; i++) {
-				int server_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_servers[i]));
-				byte[] server_macaddr = cmodule.getConetNodeMacAddress(cmodule.conet_servers[i]);
-				short port = cmodule.getConetNodePort(dp, cmodule.conet_servers[i]);
-				if(cmodule.debug_multi_cs){
-					cmodule.println("Forward To Server DP: 0x" + ConetUtility.dpLong2String(dp));
-					cmodule.println("Forward To Client IP:" + cmodule.conet_servers[i]);
-					cmodule.println("Forward To Server CMD:" + command);
-					cmodule.println("Forward To Server port_out:" + port);
+				else if(cmodule.serversnet.doyoubelong(conet_ip)){
+					if(cmodule.debug_no_conf){
+						cmodule.println("Forward To Server DP: 0x" + ConetUtility.dpLong2String(dp));
+						cmodule.println("Forward To Client IP:" + conet_ip);
+						cmodule.println("Forward To Server CMD:" + command);
+						cmodule.println("Forward To Server port_out:" + port);
+					}
+					forwardToServer(dp, command, (short) ConetModule.VLAN_ID, conet_macaddr, conet_ipaddr, port);
 				}
-				forwardToServer(dp, command, (short) ConetModule.VLAN_ID, server_macaddr, server_ipaddr, port);
-			}     
+			}			
+//			for (int i = 0; i < cmodule.conet_clients.length; i++) {
+//				int client_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_clients[i]));
+//				byte[] client_macaddr = cmodule.getConetNodeMacAddress(cmodule.conet_clients[i]);
+//				short port = cmodule.getConetNodePort(dp, cmodule.conet_clients[i]);
+//				if(cmodule.debug_multi_cs){
+//					cmodule.println("Forward To Client DP: 0x" + ConetUtility.dpLong2String(dp));
+//					cmodule.println("Forward To Client IP:" + cmodule.conet_clients[i]);
+//					cmodule.println("Forward To Client CMD:" + command);
+//					cmodule.println("Forward To Client port_out:" + port);
+//				}
+//				forwardToClient(dp, command, (short) ConetModule.VLAN_ID, client_macaddr, client_ipaddr, port);
+//			}
+//			for (int i = 0; i < cmodule.conet_servers.length; i++) {
+//				int server_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(cmodule.conet_servers[i]));
+//				byte[] server_macaddr = cmodule.getConetNodeMacAddress(cmodule.conet_servers[i]);
+//				short port = cmodule.getConetNodePort(dp, cmodule.conet_servers[i]);
+//				if(cmodule.debug_multi_cs){
+//					cmodule.println("Forward To Server DP: 0x" + ConetUtility.dpLong2String(dp));
+//					cmodule.println("Forward To Client IP:" + cmodule.conet_servers[i]);
+//					cmodule.println("Forward To Server CMD:" + command);
+//					cmodule.println("Forward To Server port_out:" + port);
+//				}
+//				forwardToServer(dp, command, (short) ConetModule.VLAN_ID, server_macaddr, server_ipaddr, port);
+//			}     
 		}
 		
 	}

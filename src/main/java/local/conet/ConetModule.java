@@ -110,10 +110,10 @@ public class ConetModule implements IFloodlightModule {
 	 * must act both as client and as server, it will have two Conet IP
 	 * addresses
 	 */
-	public String[] conet_clients = new String[0];
+	//public String[] conet_clients = new String[0];
 
 	/** Conet Servers */
-	public String[] conet_servers = new String[0];
+	//public String[] conet_servers = new String[0];
 
 	/** SW datapath */
 	// public long[] sw_datapath=new long[0];
@@ -201,16 +201,20 @@ public class ConetModule implements IFloodlightModule {
 	public boolean debug_multi_csf = false;
 	
 	public String clients = "";
-	public int bit_clients = 0;
+	public SubnetUtils clientsnet;
+	//public int bit_clients = 0;
 	
 	public String servers = "";
-	public int bit_servers = 0;
+	public SubnetUtils serversnet;
+	//public int bit_servers = 0;
 	
 	public String cservers = "";
-	public int bit_cservers = 0;
+	public SubnetUtils cserversnet;
+	//public int bit_cservers = 0;
 	
 	public String net = "";
-	public int bit_net = 0;
+	public SubnetUtils subnet;
+	//public int bit_net = 0;
 	
 	
 	public String homeserver_range[] = new String[0];
@@ -601,6 +605,11 @@ public class ConetModule implements IFloodlightModule {
 			}
 		}
 		
+		this.clientsnet = new SubnetUtils(clients);
+		this.serversnet = new SubnetUtils(servers);
+		this.cserversnet = new SubnetUtils(cservers);
+		this.subnet = new SubnetUtils(net);
+		
 //
 //		// in case a colon-formatted sw_virtual_mac_addr has been given
 //		for (int i = 0; i < sw_datapath.length; i++)
@@ -624,12 +633,13 @@ public class ConetModule implements IFloodlightModule {
 		} catch (java.io.IOException e) {
 			printException(e);
 		}
-		if(this.debug_multi_cs){
-			this.println("DEBUG MULTICS ATTIVATO");
-			this.println("Net: " + net + "/" + bit_net);
-			this.println("Clients: " + clients + "/" + bit_clients);
-			this.println("Servers: " + servers + "/" + bit_servers);
-			this.println("Clients: " + cservers + "/" + bit_cservers);
+		if(this.debug_no_conf){
+			this.println("DEBUG NOCONF ATTIVATO");
+			this.println("Clients: " + this.clientsnet.getInfo().getNetworkAddress() + "/" + this.clientsnet.getInfo().getBitmask());
+			this.println("Servers: " + this.serversnet.getInfo().getNetworkAddress() + "/" + this.serversnet.getInfo().getBitmask());
+			this.println("CServers: " + this.cserversnet.getInfo().getNetworkAddress() + "/" + this.cserversnet.getInfo().getBitmask());
+			this.println("Net: " + this.subnet.getInfo().getNetworkAddress() + "/" + this.subnet.getInfo().getBitmask());
+			
 		}
 		
 		
@@ -1277,8 +1287,9 @@ public class ConetModule implements IFloodlightModule {
 			println("DEBUG: DELETE ALL STATIC FLOW ENTRIES FOR SW 0x" + Long.toHexString(sw.getId()));
 		}
 		// doFlowModStatic(sw,OFFlowMod.OFPFC_DELETE,(short)0,(short)0,vlan,(short)0,null,(int)0,null,(int)0,(byte)0,(short)0,(short)0,(short)-1);
-		doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, vlan, (short) 0x800, null, (int) IPv4.toIPv4Address(net) , (int) bit_net,
-				null, (int) IPv4.toIPv4Address(net), (int) bit_net, (byte) conet_proto, (short) 0, (short) 0, null, 0, (short) 0);
+		doFlowModStatic(sw, OFFlowMod.OFPFC_DELETE, (short) 0, (short) 0, vlan, (short) 0x800, null, (int) IPv4.toIPv4Address(this.subnet.getInfo().getNetworkAddress()) ,
+				(int) this.subnet.getInfo().getBitmask(), null, (int) IPv4.toIPv4Address(this.subnet.getInfo().getNetworkAddress()), (int) this.subnet.getInfo().getBitmask(),
+				(byte) conet_proto, (short) 0, (short) 0, null, 0, (short) 0);
 	}
 
 
