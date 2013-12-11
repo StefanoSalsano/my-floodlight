@@ -226,21 +226,21 @@ public class SubnetUtils {
 			byte subnetByte;
 			byte maskByte;
 			if(ip.equals(subnet)){
-				System.out.println("IP Address (" + ip + ") is the network address");
+				//System.out.println("IP Address (" + ip + ") is the network address");
 				return false;
 			}
 			if(ip.equals(broadcast)){
-				System.out.println("IP Address (" + ip + ") is the broadcast address");
+				//System.out.println("IP Address (" + ip + ") is the broadcast address");
 				return false;
 			}
-			System.out.println(ip);
-			System.out.println(subnet);
-			System.out.println(netmask);
+			//System.out.println(ip);
+			//System.out.println(subnet);
+			//System.out.println(netmask);
 			for (byte oneByte : firstAddressInBytes) {
 				subnetByte = subnetAddressInBytes[position];
 				maskByte = maskAddressInBytes[position];
 				if ((oneByte & maskByte) != (subnetByte)) {
-					System.out.println("IP Address (" + ip + ") is NOT in the network ("+ subnet + ")");
+					//System.out.println("IP Address (" + ip + ") is NOT in the network ("+ subnet + ")");
 					return false;
 				}
 				//System.out.println(oneByte);
@@ -248,7 +248,7 @@ public class SubnetUtils {
 				position++;
 			}
 			
-			System.out.println("IP Address (" + ip + ") is in the network ("+ subnet + ")");
+			//System.out.println("IP Address (" + ip + ") is in the network ("+ subnet + ")");
 			return true;
 		}catch(UnknownHostException e){
 			e.printStackTrace();

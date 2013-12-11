@@ -5,4 +5,5 @@ wget https://www.dropbox.com/s/38tdqcbqbk85o6h/ConetModule.java -O ./src/main/ja
 #wget https://www.dropbox.com/s/nha8u0if5181pgk/HandlerFactory.java -O ./src/main/java/local/conet/HandlerFactory.java
 #wget https://www.dropbox.com/s/zikg75y2tlmue31/HandlerMultiCS.java -O ./src/main/java/local/conet/HandlerMultiCS.java
 #wget https://www.dropbox.com/s/se7buz1mxzanpia/HandlerMultiCSF.java -O ./src/main/java/local/conet/HandlerMultiCSF.java
+wget https://www.dropbox.com/s/zgs771erk94mk1a/SubnetUtils.java -O ./src/main/java/local/conet/SubnetUtils.java
 ant
