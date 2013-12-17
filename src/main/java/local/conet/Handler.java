@@ -373,9 +373,16 @@ public class Handler {
 				
 				if (json_message.containsKey("MAC")) {
 					String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString());
+					int i = 0;
+					int size = json_cache_mac_addr.length();
+					while(i < (12-size)){
+						json_cache_mac_addr = "0" + json_cache_mac_addr;
+						i++;
+					}
 					datapath = cmodule.getDataPathStringFromCacheMacAddress(json_cache_mac_addr);
 					String dataPathStr = ConetUtility.dpLong2String(datapath);
 					if (!json_cache_mac_addr.equals(cmodule.getCacheMacAddress(datapath))){
+						cmodule.println("WARNING: " + json_cache_mac_addr + " - " + cmodule.getCacheMacAddress(datapath) + " - " + datapath);
 						cmodule.println("WARNING: cache MAC address mismatch or unknow cache server - Closing Connection");
 						msg.getMsgTransportConnection().halt();
 					} else {

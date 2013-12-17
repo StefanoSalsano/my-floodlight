@@ -265,6 +265,12 @@ public class HandlerMultiCS extends Handler {
 			long datapath = cmodule.DEFAULT_DATAPATH;
 			
 			String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString());
+			int i = 0;
+			int size = json_cache_mac_addr.length();
+			while(i < (12-size)){
+				json_cache_mac_addr = "0" + json_cache_mac_addr;
+				i++;
+			}
 			datapath = cmodule.getDataPathStringFromCacheMacAddress(json_cache_mac_addr);
 			if(datapath == -1){
 				cmodule.println("HANDLERMULTICSF - ERRORE CACHESERVER DATA PROCESS CACHESERVERMESSAGE");
@@ -277,7 +283,7 @@ public class HandlerMultiCS extends Handler {
 			int dest_ipaddr = 0;
 			if (json_message.containsKey("DestIpAddr"))
 				dest_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(json_message.get("DestIpAddr").toString()));
-			
+			cmodule.println("dp:" + datapath + " - mac: " + json_cache_mac_addr);
 			short command = -1;
 			try{
 				if(cmodule.debug_multi_cs)
