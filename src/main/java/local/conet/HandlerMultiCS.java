@@ -264,7 +264,7 @@ public class HandlerMultiCS extends Handler {
 			CachedContent content = new CachedContent(nid, csn, tag);
 			long datapath = cmodule.DEFAULT_DATAPATH;
 			
-			String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString());
+			String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString()).toLowerCase();
 			int i = 0;
 			int size = json_cache_mac_addr.length();
 			while(i < (12-size)){
@@ -283,7 +283,7 @@ public class HandlerMultiCS extends Handler {
 			int dest_ipaddr = 0;
 			if (json_message.containsKey("DestIpAddr"))
 				dest_ipaddr = (int) BinTools.fourBytesToInt(BinAddrTools.ipv4addrToBytes(json_message.get("DestIpAddr").toString()));
-			cmodule.println("dp:" + datapath + " - mac: " + json_cache_mac_addr);
+			//cmodule.println("dp:" + datapath + " - mac: " + json_cache_mac_addr);
 			short command = -1;
 			try{
 				if(cmodule.debug_multi_cs)

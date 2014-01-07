@@ -188,9 +188,12 @@ public class Handler {
 				temp = "0" + temp;
 				i++;
 			}
-			cmod.seen_cache_server.put(id, new CacheServerConfiguration(id, cache_ip, cache_mac, cache_port, temp));
-			if(cmod.debug_no_conf)
+			CacheServerConfiguration conf = new CacheServerConfiguration(id, cache_ip, cache_mac, cache_port, temp);
+			cmod.seen_cache_server.put(id, conf);
+			if(cmod.debug_no_conf){
+				cmod.println("NEW CACHE SERVER: " + conf.toString());
 				cmod.println("addCacheServer Rilascio Lock");
+			}
 			cmod.lock_configurations.unlock();
 		}
 		finally{
@@ -372,7 +375,8 @@ public class Handler {
 				}
 				
 				if (json_message.containsKey("MAC")) {
-					String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString());
+					cmodule.println("MAC RICEVUTO: " + json_message.get("MAC").toString());
+					String json_cache_mac_addr = BinAddrTools.trimHexString(json_message.get("MAC").toString()).toLowerCase();
 					int i = 0;
 					int size = json_cache_mac_addr.length();
 					while(i < (12-size)){
