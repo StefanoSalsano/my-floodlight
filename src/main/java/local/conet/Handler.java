@@ -79,7 +79,8 @@ public class Handler {
 		
 		if(cmodule.debug_rpf){
 			cmodule.println();
-			cmodule.println("ARRIVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),p_in=" + match.getInputPort() + ",dst_mac=" + Long.toHexString(destMac)
+			cmodule.println("ARRIVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),p_in=" + match.getInputPort()
+				+  ",src_mac=" + Long.toHexString(sourceMac) + ",dst_mac=" + Long.toHexString(destMac)
 				+ ",vlan=" + vlan + ", eth_proto=0x" + Integer.toHexString(U16.f(eth_proto))
 				+ ", ip_proto=0x" + Integer.toHexString(IP_PROTO) 
 				+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_SRC)) + "/" + SRC_MASK_LEN
@@ -93,6 +94,93 @@ public class Handler {
 			this.addCacheServer(sw, pi);
 			return Command.CONTINUE;
 		}
+		
+		List<NodePortTuple> path = null;
+		long dpid = 0;
+		int port = 0;
+		if(cmodule.debug_rpf){
+			cmodule.println("\n");
+			cmodule.println("Arrive A PacketIn: " + pi.toString());
+			cmodule.println("\n");
+			IDevice attachmentPoint = null;
+			String temp = "";
+			temp = Long.toHexString(sourceMac);
+			int size = temp.length();
+			int i = 0;
+			while(i < (12-size)){
+				temp = "0" + temp;
+				i++;
+			}
+			cmodule.println("Try To Obtain A Route Towards The Source: " + IPv4.fromIPv4Address(IP_SRC) + " - " + ConetUtility.fixMac(temp));
+			for (IDevice D : cmodule.floodlightDeviceService.getAllDevices()){
+				cmodule.println(D.toString());
+                if(D.toString().contains(ConetUtility.fixMac(temp))){
+                	attachmentPoint = D;
+                }
+		    }
+			if(attachmentPoint != null){
+				cmodule.println("\n");
+				cmodule.println("Founded AttachmentPoint: " + attachmentPoint);
+				SwitchPort[] ports = attachmentPoint.getAttachmentPoints();
+				Route r = null;
+				
+				if(ports.length > 1){
+					cmodule.println("\n");
+					cmodule.println("WARNING MORE THAN ONE ATTACHMENTPOINT - Taking The First That Differ From FFFFFFFFFFFFFFFF: " + ports.toString());
+					if(ports[0].getSwitchDPID() == Long.parseLong("FFFFFFFFFFFFFFFF", 16)){
+						cmodule.println("Take The Second AttachmentPoint: " + ports[1].getSwitchDPID());
+						r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[1].getSwitchDPID());
+						dpid = ports[1].getSwitchDPID();
+						port = ports[1].getPort();
+					}
+					else
+						cmodule.println("Take The First AttachmentPoint: " + ports[0].getSwitchDPID());
+						r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
+						dpid = ports[0].getSwitchDPID();
+						port = ports[0].getPort();
+				}
+				else if(ports.length > 0){
+					r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
+					dpid = ports[0].getSwitchDPID();
+					port = ports[0].getPort();
+				}
+				if(r != null){
+					 path = r.getPath();
+					if(path != null && path.size() != 0){
+						cmodule.println("\n");
+						cmodule.println("Founded Path Towards The Source: " + path);
+					}
+				}
+				
+			}
+			cmodule.println("\n");
+			//cmodule.println("No Path\n");
+		}
+		
+		if(cmodule.debug_rpf && path != null && path.size() != 0)
+			cmodule.println("PIN=" + match.getInputPort() + " - Port Towards Source=" + path.get(0).getPortId());
+		
+		if(cmodule.debug_rpf && path != null && path.size() != 0 && 
+				sw.getId() == path.get(0).getNodeId() && path.get(0).getPortId() != match.getInputPort()){
+			cmodule.println("RPF CHECK FAILED");
+			return Command.CONTINUE;
+		}
+		else if (cmodule.debug_rpf && path != null && path.size() != 0 && sw.getId() != path.get(0).getNodeId()){
+			cmodule.println("SWITCH ID NON COINCIDONO !!!");
+			String a = null;
+			a = a.toLowerCase();
+		}
+		
+		if(cmodule.debug_rpf)
+			cmodule.println("dpid=" + dpid + ", port" + port);
+		
+		if(cmodule.debug_rpf && dpid == sw.getId() && port != match.getInputPort()){
+			cmodule.println("Directly Connected - RPF CHECK FAILED");
+			return Command.CONTINUE;
+		}
+		
+		if(cmodule.debug_rpf)
+			cmodule.println("No Path Or RPF Check Is OK - Execute");
 		
 		if(cmodule.debug_multi_cs){
 		cmodule.println("Receive Packet From Port: " + pi.getInPort() + " - With VID: " + vlan
@@ -113,47 +201,8 @@ public class Handler {
 		cmodule.learnFromSourceMac(sw, pi.getInPort(), sourceMac, vlan);
 		long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
 		
-		if(cmodule.debug_rpf){
-			cmodule.println("\n");
-			cmodule.println("Arrive A PacketIn: " + pi.toString());
-			cmodule.println("\n");
-			cmodule.println("Try To Obtain A Route Towards The Source: " + IPv4.fromIPv4Address(IP_SRC) + " - " + ConetUtility.fixMac(Long.toHexString(sourceMac)));
-			IDevice attachmentPoint = null;
-			for (IDevice D : cmodule.floodlightDeviceService.getAllDevices()){
-                if(D.toString().contains(ConetUtility.fixMac(Long.toHexString(sourceMac)))){
-                	attachmentPoint = D;
-                }
-		    }
-			if(attachmentPoint != null){
-				cmodule.println("\n");
-				cmodule.println("Founded AttachmentPoint: " + attachmentPoint);
-				SwitchPort[] ports = attachmentPoint.getAttachmentPoints();
-				Route r = null;
-				if(ports.length > 1){
-					cmodule.println("\n");
-					cmodule.println("WARNING MORE THAN ONE ATTACHMENTPOINT - Taking The First That Differ From FFFFFFFFFFFFFFFF: " + ports.toString());
-					if(ports[0].getSwitchDPID() == Long.parseLong("FFFFFFFFFFFFFFFF", 16)){
-						cmodule.println("Take The Second AttachmentPoint: " + ports[1].getSwitchDPID());
-						r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[1].getSwitchDPID());
-					}
-					else
-						cmodule.println("Take The First AttachmentPoint: " + ports[0].getSwitchDPID());
-						r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
-				}
-				else
-					r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
-				if(r != null){
-					List<NodePortTuple> path = r.getPath();
-					if(path != null && path.size() != 0){
-						cmodule.println("\n");
-						cmodule.println("Founded Path Towards The Source: " + path);
-					}
-				}
-			}
-			cmodule.println("\n");
-			cmodule.println("No Path\n");
-		}
-
+		
+		
 		// output flow-mod and/or packet
 		Short outPort = cmodule.getFromPortMap(sw, destMac, vlan);
 		if (outPort == null) {
