@@ -2,6 +2,7 @@ package local.conet;
 
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
@@ -9,8 +10,12 @@ import java.util.Vector;
 import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IListener.Command;
 import net.floodlightcontroller.core.IOFSwitch;
+import net.floodlightcontroller.devicemanager.IDevice;
+import net.floodlightcontroller.devicemanager.SwitchPort;
 import net.floodlightcontroller.packet.Ethernet;
 import net.floodlightcontroller.packet.IPv4;
+import net.floodlightcontroller.routing.Route;
+import net.floodlightcontroller.topology.NodePortTuple;
 
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -72,13 +77,14 @@ public class Handler {
 		int IP_DST = match.getNetworkDestination();
 		int DST_MASK_LEN = match.getNetworkDestinationMaskLen();
 		
-		if(cmodule.debug_multi_cs)
-		cmodule.println("ARRIVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),dst_mac" + Long.toHexString(destMac)
+		if(cmodule.debug_rpf){
+			cmodule.println();
+			cmodule.println("ARRIVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),p_in=" + match.getInputPort() + ",dst_mac=" + Long.toHexString(destMac)
 				+ ",vlan=" + vlan + ", eth_proto=0x" + Integer.toHexString(U16.f(eth_proto))
 				+ ", ip_proto=0x" + Integer.toHexString(IP_PROTO) 
 				+ ", ip_src=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_SRC)) + "/" + SRC_MASK_LEN
 				+ ", ip_dst=" + BinAddrTools.bytesToIpv4addr(BinTools.intTo4Bytes(IP_DST)) + "/" + DST_MASK_LEN);
-		
+		}
 		
 		
 		if(this.isScoutingPacket(destMac, vlan, eth_proto, IP_PROTO, IP_DST)){
@@ -106,6 +112,47 @@ public class Handler {
 		// learn from source mac/vlan
 		cmodule.learnFromSourceMac(sw, pi.getInPort(), sourceMac, vlan);
 		long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
+		
+		if(cmodule.debug_rpf){
+			cmodule.println("\n");
+			cmodule.println("Arrive A PacketIn: " + pi.toString());
+			cmodule.println("\n");
+			cmodule.println("Try To Obtain A Route Towards The Source: " + IPv4.fromIPv4Address(IP_SRC) + " - " + ConetUtility.fixMac(Long.toHexString(sourceMac)));
+			IDevice attachmentPoint = null;
+			for (IDevice D : cmodule.floodlightDeviceService.getAllDevices()){
+                if(D.toString().contains(ConetUtility.fixMac(Long.toHexString(sourceMac)))){
+                	attachmentPoint = D;
+                }
+		    }
+			if(attachmentPoint != null){
+				cmodule.println("\n");
+				cmodule.println("Founded AttachmentPoint: " + attachmentPoint);
+				SwitchPort[] ports = attachmentPoint.getAttachmentPoints();
+				Route r = null;
+				if(ports.length > 1){
+					cmodule.println("\n");
+					cmodule.println("WARNING MORE THAN ONE ATTACHMENTPOINT - Taking The First That Differ From FFFFFFFFFFFFFFFF: " + ports.toString());
+					if(ports[0].getSwitchDPID() == Long.parseLong("FFFFFFFFFFFFFFFF", 16)){
+						cmodule.println("Take The Second AttachmentPoint: " + ports[1].getSwitchDPID());
+						r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[1].getSwitchDPID());
+					}
+					else
+						cmodule.println("Take The First AttachmentPoint: " + ports[0].getSwitchDPID());
+						r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
+				}
+				else
+					r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
+				if(r != null){
+					List<NodePortTuple> path = r.getPath();
+					if(path != null && path.size() != 0){
+						cmodule.println("\n");
+						cmodule.println("Founded Path Towards The Source: " + path);
+					}
+				}
+			}
+			cmodule.println("\n");
+			cmodule.println("No Path\n");
+		}
 
 		// output flow-mod and/or packet
 		Short outPort = cmodule.getFromPortMap(sw, destMac, vlan);
@@ -118,7 +165,11 @@ public class Handler {
 			// from port map whenever a flow expires, so you would still see
 			// a lot of floods.
 			
-			if(cmodule.debug_multi_cs)
+			
+			
+			
+			
+			if(cmodule.debug_rpf)
 				cmodule.println("Packet out to all ports - Flood !!!");
 			if(cmodule.arp && eth_proto == 0x800 && sw.getId() == ghent_id){
 				cmodule.println("$$$$ - GHENT - doArpOutForPacketIn - $$$$");
@@ -126,7 +177,7 @@ public class Handler {
 			}
 			cmodule.doPacketOutForPacketIn(sw, pi, OFPort.OFPP_FLOOD.getValue());
 		} else if (outPort == match.getInputPort()) {
-			if(cmodule.debug_multi_cs){
+			if(cmodule.debug_rpf){
 				cmodule.println("DEBUG: port_in == port_out: packet ignored");
 				cmodule.println("LearningSwitch: processPacketInMessage(): ignoring packet that arrived on same port as learned destination:"
 						+ " switch " + sw + " vlan " + vlan + " dest MAC " + Long.toString(destMac, 16) + " port " + outPort);
@@ -142,7 +193,7 @@ public class Handler {
 			// the device at its former location does not keep the stale entry alive
 			// forever.
 			
-			if(cmodule.debug_multi_cs)
+			if(cmodule.debug_rpf)
 				cmodule.println("DEBUG: packet out to port " + outPort + " (and flow add)");
 			if(cmodule.arp && eth_proto == 0x800 && sw.getId() == ghent_id){
 				cmodule.println("$$$$ - GHENT - doArpOutForPacketIn - $$$$");

@@ -12,6 +12,7 @@ import org.openflow.util.LRULinkedHashMap;
 import net.floodlightcontroller.core.*;
 import net.floodlightcontroller.core.module.*;
 import net.floodlightcontroller.core.types.MacVlanPair;
+import net.floodlightcontroller.devicemanager.IDeviceService;
 import net.floodlightcontroller.packet.IPv4;
 
 
@@ -23,6 +24,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
 import net.floodlightcontroller.restserver.IRestApiService;
+import net.floodlightcontroller.routing.IRoutingService;
 
 public class ConetModule implements IFloodlightModule {
 
@@ -99,7 +101,11 @@ public class ConetModule implements IFloodlightModule {
 
 	/** FloodlightProvider */
 	protected IFloodlightProviderService floodlightProvider;
-
+	/** Routing Service */
+	protected IRoutingService floodlightRouting;
+	/** Device Service */
+	protected IDeviceService floodlightDeviceService;
+	
 	/** Default datapath */
 	// NOTE: this should be removed when the cache server will send datapath
 	// within cache-to-controller messages
@@ -237,6 +243,8 @@ public class ConetModule implements IFloodlightModule {
     public String reserved_ip="";
     public String reserved_mac="";
     public boolean debug_no_conf=false;
+
+	public boolean debug_rpf=false;
 	
 	/** Sets tag-based forwarding. */
 	public void setTBF(ConetMode tag_based_forwarding) {
@@ -536,6 +544,8 @@ public class ConetModule implements IFloodlightModule {
 	public Collection<Class<? extends IFloodlightService>> getModuleDependencies() {
 		Collection<Class<? extends IFloodlightService>> l = new ArrayList<Class<? extends IFloodlightService>>();
 		l.add(IFloodlightProviderService.class);
+		l.add(IRoutingService.class);
+		l.add(IDeviceService.class);
 		return l;
 	}
 
@@ -561,6 +571,14 @@ public class ConetModule implements IFloodlightModule {
 					log_time);
 			log.setTimestamp(true);
 		}
+		
+		this.floodlightRouting = context.getServiceImpl(IRoutingService.class);
+		this.floodlightDeviceService = context.getServiceImpl(IDeviceService.class);
+		if(debug_rpf){
+			this.println("RoutingService Loaded: " + this.floodlightRouting.toString());
+			this.println("DeviceService Loaded: " + this.floodlightDeviceService.toString());
+		}
+			
 		
 		if(this.debug_multi_cs)
 			this.println("Starting Create FlowModLogger");

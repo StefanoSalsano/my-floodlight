@@ -20,5 +20,14 @@ public class ConetUtility {
 		String[] st = prefix.split("\\/");
 		 return new Pair<String , Integer>(st[0],Integer.parseInt(st[1]));
 	}
+	
+	public static String fixMac(String inMac) {
+		final StringBuilder b = new StringBuilder(18);
+		for (int i = 0; i < inMac.length(); i++) {
+		  b.append(inMac.charAt(i));
+		  if (i%2 == 1 && i != inMac.length()-1) b.append(':');
+		}
+		return b.toString();
+	}
 
 }
