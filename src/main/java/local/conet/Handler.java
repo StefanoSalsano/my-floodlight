@@ -77,7 +77,7 @@ public class Handler {
 		int IP_DST = match.getNetworkDestination();
 		int DST_MASK_LEN = match.getNetworkDestinationMaskLen();
 		
-		if(cmodule.debug_rpf){
+		if(cmodule.debug_multi_cs){
 			cmodule.println();
 			cmodule.println("ARRIVED: dp=" + sw.getId() + "(" + Long.toHexString(sw.getId()) + "),p_in=" + match.getInputPort()
 				+  ",src_mac=" + Long.toHexString(sourceMac) + ",dst_mac=" + Long.toHexString(destMac)
@@ -95,95 +95,10 @@ public class Handler {
 			return Command.CONTINUE;
 		}
 		
-		List<NodePortTuple> path = null;
-		long dpid = 0;
-		int port = 0;
-		if(cmodule.debug_rpf){
-			cmodule.println("\n");
-			cmodule.println("Arrive A PacketIn: " + pi.toString());
-			cmodule.println("\n");
-			IDevice attachmentPoint = null;
-			String temp = "";
-			temp = Long.toHexString(sourceMac);
-			int size = temp.length();
-			int i = 0;
-			while(i < (12-size)){
-				temp = "0" + temp;
-				i++;
-			}
-			cmodule.println("Try To Obtain A Route Towards The Source: " + IPv4.fromIPv4Address(IP_SRC) + " - " + ConetUtility.fixMac(temp));
-			for (IDevice D : cmodule.floodlightDeviceService.getAllDevices()){
-				cmodule.println(D.toString());
-                if(D.toString().contains(ConetUtility.fixMac(temp))){
-                	attachmentPoint = D;
-                }
-		    }
-			if(attachmentPoint != null){
-				cmodule.println("\n");
-				cmodule.println("Founded AttachmentPoint: " + attachmentPoint);
-				SwitchPort[] ports = attachmentPoint.getAttachmentPoints();
-				Route r = null;
-				
-				if(ports.length > 1){
-					cmodule.println("\n");
-					cmodule.println("WARNING MORE THAN ONE ATTACHMENTPOINT - Taking The First That Differ From FFFFFFFFFFFFFFFF: " + ports.toString());
-					if(ports[0].getSwitchDPID() == Long.parseLong("FFFFFFFFFFFFFFFF", 16)){
-						cmodule.println("Take The Second AttachmentPoint: " + ports[1].getSwitchDPID());
-						r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[1].getSwitchDPID());
-						dpid = ports[1].getSwitchDPID();
-						port = ports[1].getPort();
-					}
-					else
-						cmodule.println("Take The First AttachmentPoint: " + ports[0].getSwitchDPID());
-						r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
-						dpid = ports[0].getSwitchDPID();
-						port = ports[0].getPort();
-				}
-				else if(ports.length > 0){
-					r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
-					dpid = ports[0].getSwitchDPID();
-					port = ports[0].getPort();
-				}
-				if(r != null){
-					 path = r.getPath();
-					if(path != null && path.size() != 0){
-						cmodule.println("\n");
-						cmodule.println("Founded Path Towards The Source: " + path);
-					}
-				}
-				
-			}
-			cmodule.println("\n");
-			//cmodule.println("No Path\n");
-		}
 		
-		if(cmodule.debug_rpf && path != null && path.size() != 0)
-			cmodule.println("PIN=" + match.getInputPort() + " - Port Towards Source=" + path.get(0).getPortId());
-		
-		if(cmodule.debug_rpf && path != null && path.size() != 0 && 
-				sw.getId() == path.get(0).getNodeId() && path.get(0).getPortId() != match.getInputPort()){
-			cmodule.println("RPF CHECK FAILED");
-			return Command.CONTINUE;
-		}
-		else if (cmodule.debug_rpf && path != null && path.size() != 0 && sw.getId() != path.get(0).getNodeId()){
-			cmodule.println("SWITCH ID NON COINCIDONO !!!");
-			String a = null;
-			a = a.toLowerCase();
-		}
-		
-		if(cmodule.debug_rpf)
-			cmodule.println("dpid=" + dpid + ", port" + port);
-		
-		if(cmodule.debug_rpf && dpid == sw.getId() && port != match.getInputPort()){
-			cmodule.println("Directly Connected - RPF CHECK FAILED");
-			return Command.CONTINUE;
-		}
-		
-		if(cmodule.debug_rpf)
-			cmodule.println("No Path Or RPF Check Is OK - Execute");
 		
 		if(cmodule.debug_multi_cs){
-		cmodule.println("Receive Packet From Port: " + pi.getInPort() + " - With VID: " + vlan
+			cmodule.println("Receive Packet From Port: " + pi.getInPort() + " - With VID: " + vlan
 				+ " - SMAC: " + Long.toString(sourceMac, 16) + " - DMAC: " + Long.toString(destMac, 16));
 		}
 
@@ -197,6 +112,7 @@ public class Handler {
 //					verbose = true;
 //		}
 
+		
 		// learn from source mac/vlan
 		cmodule.learnFromSourceMac(sw, pi.getInPort(), sourceMac, vlan);
 		long ghent_id = Long.parseLong(BinAddrTools.trimHexString("01:00:00:00:00:00:00:FF"),16);
@@ -212,11 +128,7 @@ public class Handler {
 			// XXX For LearningSwitch this doesn't do much. The sourceMac is
 			// removed
 			// from port map whenever a flow expires, so you would still see
-			// a lot of floods.
-			
-			
-			
-			
+			// a lot of floods.			
 			
 			if(cmodule.debug_rpf)
 				cmodule.println("Packet out to all ports - Flood !!!");
@@ -714,3 +626,100 @@ public class Handler {
 
 
 }
+
+
+
+/*
+ * 
+ * Cimitero Del Codice
+ * 
+ * 
+ */
+
+//Old RPF Logic
+
+//List<NodePortTuple> path = null;
+//long dpid = 0;
+//int port = 0;
+//if(cmodule.debug_rpf){
+//	cmodule.println("\n");
+//	cmodule.println("Arrive A PacketIn: " + pi.toString());
+//	cmodule.println("\n");
+//	IDevice attachmentPoint = null;
+//	String temp = "";
+//	temp = Long.toHexString(sourceMac);
+//	int size = temp.length();
+//	int i = 0;
+//	while(i < (12-size)){
+//		temp = "0" + temp;
+//		i++;
+//	}
+//	cmodule.println("Try To Obtain A Route Towards The Source: " + IPv4.fromIPv4Address(IP_SRC) + " - " + ConetUtility.fixMac(temp));
+//	for (IDevice D : cmodule.floodlightDeviceService.getAllDevices()){
+//		cmodule.println(D.toString());
+//        if(D.toString().contains(ConetUtility.fixMac(temp))){
+//        	attachmentPoint = D;
+//        }
+//    }
+//	if(attachmentPoint != null){
+//		cmodule.println("\n");
+//		cmodule.println("Founded AttachmentPoint: " + attachmentPoint);
+//		SwitchPort[] ports = attachmentPoint.getAttachmentPoints();
+//		Route r = null;
+//		
+//		if(ports.length > 1){
+//			cmodule.println("\n");
+//			cmodule.println("WARNING MORE THAN ONE ATTACHMENTPOINT - Taking The First That Differ From FFFFFFFFFFFFFFFF: " + ports.toString());
+//			if(ports[0].getSwitchDPID() == Long.parseLong("FFFFFFFFFFFFFFFF", 16)){
+//				cmodule.println("Take The Second AttachmentPoint: " + ports[1].getSwitchDPID());
+//				r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[1].getSwitchDPID());
+//				dpid = ports[1].getSwitchDPID();
+//				port = ports[1].getPort();
+//			}
+//			else
+//				cmodule.println("Take The First AttachmentPoint: " + ports[0].getSwitchDPID());
+//				r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
+//				dpid = ports[0].getSwitchDPID();
+//				port = ports[0].getPort();
+//		}
+//		else if(ports.length > 0){
+//			r = cmodule.floodlightRouting.getRoute(sw.getId(), ports[0].getSwitchDPID());
+//			dpid = ports[0].getSwitchDPID();
+//			port = ports[0].getPort();
+//		}
+//		if(r != null){
+//			 path = r.getPath();
+//			if(path != null && path.size() != 0){
+//				cmodule.println("\n");
+//				cmodule.println("Founded Path Towards The Source: " + path);
+//			}
+//		}
+//		
+//	}
+//	cmodule.println("\n");
+//	//cmodule.println("No Path\n");
+//}
+//if(cmodule.debug_rpf && path != null && path.size() != 0)
+//	cmodule.println("PIN=" + match.getInputPort() + " - Port Towards Source=" + path.get(0).getPortId());
+//
+//if(cmodule.debug_rpf && path != null && path.size() != 0 && 
+//		sw.getId() == path.get(0).getNodeId() && path.get(0).getPortId() != match.getInputPort()){
+//	cmodule.println("RPF CHECK FAILED");
+//	return Command.CONTINUE;
+//}
+//else if (cmodule.debug_rpf && path != null && path.size() != 0 && sw.getId() != path.get(0).getNodeId()){
+//	cmodule.println("SWITCH ID NON COINCIDONO !!!");
+//	String a = null;
+//	a = a.toLowerCase();
+//}
+//
+//if(cmodule.debug_rpf)
+//	cmodule.println("dpid=" + dpid + ", port" + port);
+//
+//if(cmodule.debug_rpf && dpid == sw.getId() && port != match.getInputPort()){
+//	cmodule.println("Directly Connected - RPF CHECK FAILED");
+//	return Command.CONTINUE;
+//}
+//
+//if(cmodule.debug_rpf)
+//	cmodule.println("No Path Or RPF Check Is OK - Execute");

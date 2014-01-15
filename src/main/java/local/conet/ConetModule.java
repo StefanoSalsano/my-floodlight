@@ -245,6 +245,7 @@ public class ConetModule implements IFloodlightModule {
     public boolean debug_no_conf=false;
 
 	public boolean debug_rpf=false;
+	public boolean rpf=false;
 	
 	/** Sets tag-based forwarding. */
 	public void setTBF(ConetMode tag_based_forwarding) {
@@ -585,7 +586,7 @@ public class ConetModule implements IFloodlightModule {
 		this.flowmodlistener = new FlowModLogger(this.log_file_flowmod, this.log_size, this.log_rotation, this.log_time);
 		if(this.debug_multi_cs)
 			this.println("Starting Create ConetListener");
-		this.conetlistener = new ConetListener();
+		this.conetlistener = this.getConetListener();
 		
 		if(!this.tag_based_forwarding){
 			this.println("TAG BASED FORWARDING DISABLED");
@@ -663,6 +664,15 @@ public class ConetModule implements IFloodlightModule {
 		
 	}
 
+	
+	private ConetListener getConetListener(){
+		if(!rpf){
+			this.println("WARNING LOOP RPF NOT ACTIVE - " + ConetListener.class);
+			return new ConetListener();
+		}
+		this.println("RPF ACTIVE - " + ConetListenerRPF.class);
+		return new ConetListenerRPF();
+	}
 
 	
 
