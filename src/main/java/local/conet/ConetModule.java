@@ -25,6 +25,7 @@ import org.json.simple.JSONValue;
 
 import net.floodlightcontroller.restserver.IRestApiService;
 import net.floodlightcontroller.routing.IRoutingService;
+import net.floodlightcontroller.topology.ITopologyService;
 
 public class ConetModule implements IFloodlightModule {
 
@@ -105,6 +106,8 @@ public class ConetModule implements IFloodlightModule {
 	protected IRoutingService floodlightRouting;
 	/** Device Service */
 	protected IDeviceService floodlightDeviceService;
+	/** Topology Service */
+	protected ITopologyService floodlightTopologyService;
 	
 	/** Default datapath */
 	// NOTE: this should be removed when the cache server will send datapath
@@ -547,6 +550,7 @@ public class ConetModule implements IFloodlightModule {
 		l.add(IFloodlightProviderService.class);
 		l.add(IRoutingService.class);
 		l.add(IDeviceService.class);
+		l.add(ITopologyService.class);
 		return l;
 	}
 
@@ -575,9 +579,11 @@ public class ConetModule implements IFloodlightModule {
 		
 		this.floodlightRouting = context.getServiceImpl(IRoutingService.class);
 		this.floodlightDeviceService = context.getServiceImpl(IDeviceService.class);
+		this.floodlightTopologyService = context.getServiceImpl(ITopologyService.class);
 		if(debug_rpf){
 			this.println("RoutingService Loaded: " + this.floodlightRouting.toString());
 			this.println("DeviceService Loaded: " + this.floodlightDeviceService.toString());
+			this.println("Topology Service Loaded:" + this.floodlightTopologyService.toString());
 		}
 			
 		

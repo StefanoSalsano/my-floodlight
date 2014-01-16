@@ -56,8 +56,8 @@ public class ConetListenerRPF extends ConetListener {
 		if (Integer.toHexString(U16.f(eth_proto)).equalsIgnoreCase("86dd") && 
 				(Integer.toHexString(IP_PROTO).equals("00") || Integer.toHexString(IP_PROTO).equals("0"))) {
 			if (cmodule.debug_rpf)
-			cmodule.println("WARNING - RPFCHECK DISCARD IPV6 HOPBYHOP Packet");
-			return false;
+			cmodule.println("WARNING - RPFCHECK IPV6 HOPBYHOP Packet");
+//			return false;
 		}
 		
 		List<NodePortTuple> path = null;
@@ -88,7 +88,7 @@ public class ConetListenerRPF extends ConetListener {
 					cmodule.println("\n");
 					cmodule.println("WARNING MORE THAN ONE ATTACHMENTPOINT - Taking The First That Differ From FFFFFFFFFFFFFFFF: " + ports.toString());
 				}
-				if(ports[0].getSwitchDPID() == Long.parseLong("FFFFFFFFFFFFFFFF", 16)){
+				if(ports[0].getSwitchDPID() == -1/*Long.parseLong("FFFFFFFFFFFFFFFF", 16)*/){
 					if(cmodule.debug_rpf){
 						cmodule.println("\n");
 						cmodule.println("Take The Second AttachmentPoint: " + Long.toHexString(ports[1].getSwitchDPID()) + " - " + ports[1].getPort());
@@ -125,7 +125,6 @@ public class ConetListenerRPF extends ConetListener {
 						cmodule.println("Founded Path Towards The Source: " + path);
 						cmodule.println("PortIn=" + match.getInputPort() + " - Port Towards Source=" + path.get(0).getPortId());
 					}
-					
 					if(sw.getId() == path.get(0).getNodeId() && path.get(0).getPortId() != match.getInputPort()){
 						if(cmodule.debug_rpf){
 							cmodule.println("\n");
@@ -134,23 +133,37 @@ public class ConetListenerRPF extends ConetListener {
 						return false;
 					}
 					else if (sw.getId() != path.get(0).getNodeId()){
-						cmodule.println("ERROR SWITCH ID NON COINCIDONO !!!");
-						String a = null;
-						a = a.toLowerCase();
+						cmodule.println(" WARNING ERROR SWITCH ID NON COINCIDONO !!!");
+						System.exit(1);
 					}
 					
 				}
 				else{
 					if(cmodule.debug_rpf){
 						cmodule.println("\n");
-						cmodule.println("No Valid Path Towards Source");
+						cmodule.println("No Valid Path Towards Source - dpid=" + Long.toHexString(dpid) + ", sw=" + Long.toHexString(sw.getId()));
 					}
+					if(dpid != sw.getId() && !cmodule.floodlightTopologyService.isIncomingBroadcastAllowed(sw.getId(), pi.getInPort())){
+						if(cmodule.debug_rpf){	
+							cmodule.println("\n");
+							cmodule.println("Incoming Broadcast Not Allowed - RPF CHECK FAILED");	
+						}
+						return false;
+					}
+					
 				}
 			}
 			else{
 				if(cmodule.debug_rpf){
 					cmodule.println("\n");
-					cmodule.println("No Valid Route Towards Source");
+					cmodule.println("No Valid Route Towards Source - dpid=" + Long.toHexString(dpid) + ", sw=" + Long.toHexString(sw.getId()));
+				}
+				if(dpid != sw.getId() && !cmodule.floodlightTopologyService.isIncomingBroadcastAllowed(sw.getId(), pi.getInPort())){
+					if(cmodule.debug_rpf){	
+						cmodule.println("\n");
+						cmodule.println("Incoming Broadcast Not Allowed - RPF CHECK FAILED");
+					}
+					return false;
 				}
 			}
 			
@@ -158,7 +171,14 @@ public class ConetListenerRPF extends ConetListener {
 		else{
 			if(cmodule.debug_rpf){
 				cmodule.println("\n");
-				cmodule.println("No Valid Attachment Point");
+				cmodule.println("No Valid Attachment Point");	
+			}
+			if(!cmodule.floodlightTopologyService.isIncomingBroadcastAllowed(sw.getId(), pi.getInPort())){
+				if(cmodule.debug_rpf){
+					cmodule.println("\n");
+					cmodule.println("Incoming Broadcast Not Allowed - RPF CHECK FAILED");
+				}
+				return false;
 			}
 		}
 		
@@ -169,10 +189,24 @@ public class ConetListenerRPF extends ConetListener {
 		}
 		
 		if(cmodule.debug_rpf && dpid == sw.getId() && port != match.getInputPort()){
-			cmodule.println("\n");
-			cmodule.println("Directly Connected - RPF CHECK FAILED");
+			if(cmodule.debug_rpf){
+				cmodule.println("\n");
+				cmodule.println("Directly Connected - RPF CHECK FAILED");
+			}
 			return false;
 		}
+		
+//		if(!cmodule.floodlightTopologyService.isIncomingBroadcastAllowed(sw.getId(), pi.getInPort())){
+//			if(attachmentPoint != null && path != null && path.size() != 0){
+//				cmodule.println("\n");
+//				cmodule.println("WARNING Different DECISION - By RPF And BroadcastTree - EXIT\n");
+//				System.exit(1);
+//				
+//			}
+//			cmodule.println("\n");
+//			cmodule.println("Incoming Broadcast Not Allowed - RPF CHECK FAILED");
+//			return false;
+//		}
 		
 		
 		if(cmodule.debug_rpf){
