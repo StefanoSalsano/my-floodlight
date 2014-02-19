@@ -188,7 +188,7 @@ public class ConetListenerRPF extends ConetListener {
 			cmodule.println("AttachmentPoint: DPID=" + Long.toHexString(dpid) + ", PORT=" + port);
 		}
 		
-		if(cmodule.debug_rpf && dpid == sw.getId() && port != match.getInputPort()){
+		if(dpid == sw.getId() && port != match.getInputPort()){
 			if(cmodule.debug_rpf){
 				cmodule.println("\n");
 				cmodule.println("Directly Connected - RPF CHECK FAILED");
